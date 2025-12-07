@@ -1,9 +1,12 @@
 # Receipt parsing with ONNX + React
 
-This project demonstrates a browser-first receipt parser that combines rule-based heuristics with an ONNX line classifier. Users can paste OCR text or upload receipt images/PDFs, review the parsed result, edit any field, and submit corrected samples to a lightweight backend. Python scripts convert the collected samples into an updated ONNX model for the browser.
+Browser-first receipt parsing that mixes rule-based heuristics with an ONNX line classifier. Users can upload receipts (JPG/PNG/HEIC/PDF) or paste OCR text, review the parsed result, edit any field, and submit corrected samples to a lightweight backend. Python scripts convert the collected samples into an updated ONNX model for the browser.
 
 ## Project layout
-- `frontend/` – React + TypeScript app built with Vite. It loads an ONNX model (when available), extracts line-level features, parses receipts, and lets users edit and save results.
+- `frontend/` – React + TypeScript app (Vite) with components for upload, summary, and items.
+  - `src/components/` – `FileUpload`, `Summary`, `ItemsTable` UI pieces.
+  - `src/services/` – `ocrStub`, `parser`, `aiModel`, `api`, `lineFeatures` logic.
+  - `public/models/` – place `line_classifier.onnx` for the browser (output of training script).
 - `server/` – Express server that stores each training example in `server/data/samples.jsonl` (one JSON object per line) and can serve the built frontend.
 - `training/` – Python utilities to prepare the dataset and train/export the line classifier to ONNX.
 
@@ -42,8 +45,8 @@ npm run server
 If `dist/` exists (after `npm run build`), the server also serves the built SPA so you can run everything from http://localhost:4000.
 
 ## Self-learning loop
-1. Open the app, paste OCR text (or upload an image/PDF to use the stub OCR message), and click **Parse**.
-2. Review and edit store/date/total/items in the UI.
+1. Open the app, paste OCR text (or upload an image/PDF — OCR is stubbed but the flow is the same), and click **Parse**.
+2. Review and edit store/date/total/items in the UI (all fields are editable React controls).
 3. Click **Save / Confirm** to POST a `TrainingSample` with `rawText`, `parsedBefore`, and `parsedAfter` to the backend.
 4. Repeat to accumulate real-world samples in `server/data/samples.jsonl`.
 
@@ -59,7 +62,7 @@ Run training:
 ```bash
 python -m training.train_line_classifier
 ```
-This will print train/test accuracy and export `line_classifier.onnx` into `frontend/public/models/`. Rebuild the frontend afterwards (`npm run build`) so the new model is available in production bundles.
+This prints train/test accuracy and exports `line_classifier.onnx` into `frontend/public/models/`. Rebuild the frontend afterwards (`npm run build`) so the new model is available in production bundles.
 
 ## Feature parity between Python and browser
 Both the Python scripts and the frontend use the same 11 numeric features per line in this order:
@@ -69,15 +72,15 @@ Both the Python scripts and the frontend use the same 11 numeric features per li
 4. spaceCount
 5. digitRatio
 6. alphaRatio
-7. hasX
+7. hasX (includes `x` and `×`)
 8. hasStar
 9. hasPercent
 10. hasCurrency
 11. priceLikeCount
 
-Keep this order intact when experimenting, otherwise the model and browser will disagree.
+Keep this order intact when experimenting so the model and browser agree on inputs.
 
 ## Notes
-- The OCR layer is intentionally a stub; replace `frontend/src/ocr.ts` with Tesseract.js or any OCR service if you need automated extraction.
+- The OCR layer is intentionally a stub; replace `frontend/src/services/ocrStub.ts` with Tesseract.js or any OCR service to automate extraction. The UI already handles JPG/PNG/HEIC/PDF upload flow.
 - The parser works even if the ONNX model is missing, relying solely on regex/rule heuristics.
 - Training samples are appended to a JSONL file for simplicity; rotate or move the file if it grows large.

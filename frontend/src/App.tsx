@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import './styles.css';
-import { loadLineClassifier, getModelStatus } from './aiModel';
-import { parseReceipt } from './parser';
-import { runOcr } from './ocr';
-import { saveTrainingSample } from './api';
+import { FileUpload } from './components/FileUpload';
+import { Summary } from './components/Summary';
+import { ItemsTable } from './components/ItemsTable';
+import { loadLineClassifier, getModelStatus } from './services/aiModel';
+import { parseReceipt } from './services/parser';
+import { extractRawTextFromFile } from './services/ocrStub';
+import { saveTrainingSample } from './services/api';
 import type { ParsedReceipt, ParsedItem } from './types';
 
 const emptyReceipt: ParsedReceipt = {
@@ -21,7 +24,6 @@ export function App() {
   const [edited, setEdited] = useState<ParsedReceipt>(emptyReceipt);
   const [loading, setLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
-
   const [modelStatus, setModelStatus] = useState(getModelStatus());
 
   useEffect(() => {
@@ -34,11 +36,11 @@ export function App() {
     try {
       let text = rawText.trim();
       if (!text && file) {
-        text = await runOcr(file);
+        text = await extractRawTextFromFile(file);
         setRawText(text);
       }
       if (!text) {
-        throw new Error('Please provide raw text or upload a receipt image/PDF.');
+        throw new Error('Provide raw text or upload a receipt first.');
       }
       const receipt = await parseReceipt(text);
       setParsed(receipt);
@@ -98,143 +100,36 @@ export function App() {
     }));
   };
 
+  const modelLabel = modelStatus.loaded
+    ? 'Model: ONNX loaded'
+    : `Model: rules only${modelStatus.error ? ` (${modelStatus.error})` : ''}`;
+
   return (
     <div className="app-shell">
       <div className="card">
         <h1>Receipt parser with ONNX + rules</h1>
         <p className="footer-note">
-          Paste raw text or upload JPG/PNG/HEIC/PDF, parse, edit, and confirm to create training examples.
+          Upload JPG/PNG/HEIC/PDF or paste OCR text, parse, edit, and confirm to build a better model over time.
         </p>
       </div>
 
-      <div className="card">
-        <div className="grid">
-          <div>
-            <label htmlFor="file">Upload receipt (JPG, PNG, HEIC, PDF)</label>
-            <input
-              id="file"
-              type="file"
-              accept="image/*,.pdf"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-            />
-          </div>
-          <div>
-            <label htmlFor="raw">Raw text</label>
-            <textarea
-              id="raw"
-              value={rawText}
-              onChange={(e) => setRawText(e.target.value)}
-              placeholder="Paste OCR text or type here"
-            />
-          </div>
-        </div>
-        <div className="actions" style={{ marginTop: 12 }}>
-          <button onClick={handleParse} disabled={loading}>
-            {loading ? 'Parsing…' : 'Parse'}
-          </button>
-          <span className="badge">
-            Model: {modelStatus.loaded ? 'ONNX loaded' : 'Rules only'}
-            {modelStatus.error ? ` (error: ${modelStatus.error})` : ''}
-          </span>
-        </div>
-      </div>
+      <FileUpload
+        onFileSelected={setFile}
+        rawText={rawText}
+        onRawTextChange={setRawText}
+        onParse={handleParse}
+        loading={loading}
+        modelLabel={modelLabel}
+      />
 
-      <div className="card">
-        <div className="summary-fields">
-          <div>
-            <label>Store</label>
-            <input
-              value={edited.storeName ?? ''}
-              onChange={(e) => handleSummaryChange('storeName', e.target.value)}
-              placeholder="Store name"
-            />
-          </div>
-          <div>
-            <label>Date</label>
-            <input
-              value={edited.purchaseDate ?? ''}
-              onChange={(e) => handleSummaryChange('purchaseDate', e.target.value)}
-              placeholder="YYYY-MM-DD"
-            />
-          </div>
-          <div>
-            <label>Total</label>
-            <input
-              type="number"
-              step="0.01"
-              value={edited.grandTotal ?? ''}
-              onChange={(e) => handleSummaryChange('grandTotal', e.target.value)}
-              placeholder="0.00"
-            />
-          </div>
-        </div>
-      </div>
+      <Summary
+        storeName={edited.storeName}
+        purchaseDate={edited.purchaseDate}
+        grandTotal={edited.grandTotal}
+        onChange={handleSummaryChange}
+      />
 
-      <div className="card">
-        <div className="status-row">
-          <h3>Items</h3>
-          <button type="button" onClick={addEmptyRow}>
-            Add row
-          </button>
-        </div>
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th>Qty</th>
-                <th>Price</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {edited.items.map((item, idx) => (
-                <tr key={idx}>
-                  <td>
-                    <input
-                      value={item.description}
-                      onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
-                      placeholder="Item"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={item.quantity ?? ''}
-                      onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
-                      placeholder="1"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={item.price ?? ''}
-                      onChange={(e) => handleItemChange(idx, 'price', e.target.value)}
-                      placeholder="0.00"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={item.total ?? ''}
-                      onChange={(e) => handleItemChange(idx, 'total', e.target.value)}
-                      placeholder="0.00"
-                    />
-                  </td>
-                </tr>
-              ))}
-              {edited.items.length === 0 && (
-                <tr>
-                  <td colSpan={4}>No items parsed yet.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <ItemsTable items={edited.items} onItemChange={handleItemChange} onAddRow={addEmptyRow} />
 
       <div className="card">
         <div className="actions">
@@ -244,8 +139,7 @@ export function App() {
           {saveStatus && <div className="alert">{saveStatus}</div>}
         </div>
         <p className="footer-note">
-          Training sample contains raw text, the automatic parse, and your corrections to continuously improve the
-          model.
+          Training sample contains raw text, the automatic parse, and your corrections to continuously improve the model.
         </p>
       </div>
     </div>

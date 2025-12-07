@@ -6,6 +6,7 @@ from typing import List, Tuple
 SAMPLES_FILE = os.path.join(os.path.dirname(__file__), '..', 'server', 'data', 'samples.jsonl')
 CURRENCY_PATTERN = re.compile(r"[€$£¥₴₽₸₼₺₩₦₨₫₡₱₲₪₵₭₮₤]|\\bkn\\b|\\bhrk\\b|\\brsd\\b|\\bbam\\b|\\bum\\b", re.IGNORECASE)
 PRICE_PATTERN = re.compile(r"\d+[.,]\d{2}")
+# Keep this list in sync with frontend/src/services/lineFeatures.ts
 FEATURE_NAMES = [
     'length',
     'digitCount',
@@ -28,7 +29,8 @@ def extract_line_features(line: str) -> List[float]:
     space_count = len(re.findall(r"\s", line))
     digit_ratio = digit_count / length if length else 0.0
     alpha_ratio = alpha_count / length if length else 0.0
-    has_x = 1 if re.search(r"x", line, re.IGNORECASE) else 0
+    # Align with frontend feature extraction (x or multiplication sign).
+    has_x = 1 if re.search(r"x|×", line, re.IGNORECASE) else 0
     has_star = 1 if "*" in line else 0
     has_percent = 1 if "%" in line else 0
     has_currency = 1 if CURRENCY_PATTERN.search(line) else 0

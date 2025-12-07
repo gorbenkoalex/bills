@@ -171,3 +171,8 @@ td input {
   color: #475569;
   font-size: 14px;
 }
+
+.muted {
+  color: #64748b;
+  font-size: 13px;
+}
