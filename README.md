@@ -1,32 +1,83 @@
-# bills
+# Receipt parsing with ONNX + React
 
-Односторінковий приклад, який розпізнає текст з фото чеків прямо у браузері за допомогою Tesseract.js та перетворює його на таблицю для швидкого аналізу.
+This project demonstrates a browser-first receipt parser that combines rule-based heuristics with an ONNX line classifier. Users can paste OCR text or upload receipt images/PDFs, review the parsed result, edit any field, and submit corrected samples to a lightweight backend. Python scripts convert the collected samples into an updated ONNX model for the browser.
 
-## Можливості
-- Завантаження або перетягування фото чеку чи PDF
-- Відображення статусу та прогресу OCR у реальному часі
-- Парсинг розпізнаного тексту у позиції з кількістю, ціною та сумою
-- Експорт знайдених позицій у CSV
-- Перегляд повного тексту, який можна вручну відредагувати
+## Project layout
+- `frontend/` – React + TypeScript app built with Vite. It loads an ONNX model (when available), extracts line-level features, parses receipts, and lets users edit and save results.
+- `server/` – Express server that stores each training example in `server/data/samples.jsonl` (one JSON object per line) and can serve the built frontend.
+- `training/` – Python utilities to prepare the dataset and train/export the line classifier to ONNX.
 
-## Як запустити
-1. Встановіть залежності:
-   ```bash
-   npm install
-   ```
-2. Зберіть фронтенд (одночасно оновиться каталог `dist/`):
-   ```bash
-   npm run build
-   ```
-3. Для локального запуску з простим сервером використайте команду:
-   ```bash
-   npm run dev
-   ```
-   Після збірки відкрийте у браузері адресу, яку сервер покаже в консолі (за замовчуванням `http://localhost:4173`).
+## Prerequisites
+- Node.js 18+
+- Python 3.10+
 
-> Для PDF файлів спершу рендериться перша сторінка у зображення, після чого запускається OCR. Якщо в каталозі `dist/` немає
-> `pdf.min.mjs` і `pdf.worker.min.mjs`, програма автоматично спробує завантажити їх із CDN; при відсутності мережі PDF перетворення
-> буде недоступним. Щоб уникнути попереджень у консолі, виконайте `npm install && npm run copy:pdf` (скрипт перевіряє і `build/`,
-> і `legacy/build/` у `pdfjs-dist`) або додайте ці файли у `dist/` вручну.
+## Frontend
 
-> Всі обчислення виконуються локально в браузері; бекенд не потрібен.
+### Install dependencies
+```bash
+npm install
+```
+
+### Run in dev mode
+```bash
+npm run dev
+```
+The app will be available on http://localhost:5173.
+
+### Build for production
+```bash
+npm run build
+```
+The static assets are emitted into `dist/`.
+
+## Backend
+
+### Start the API server
+```bash
+npm run server
+```
+- `POST /api/receipt-samples` appends a `TrainingSample` to `server/data/samples.jsonl`.
+- `GET /api/health` returns `{ status: "ok" }`.
+
+If `dist/` exists (after `npm run build`), the server also serves the built SPA so you can run everything from http://localhost:4000.
+
+## Self-learning loop
+1. Open the app, paste OCR text (or upload an image/PDF to use the stub OCR message), and click **Parse**.
+2. Review and edit store/date/total/items in the UI.
+3. Click **Save / Confirm** to POST a `TrainingSample` with `rawText`, `parsedBefore`, and `parsedAfter` to the backend.
+4. Repeat to accumulate real-world samples in `server/data/samples.jsonl`.
+
+## Training the ONNX classifier
+The training scripts consume the collected samples and produce `frontend/public/models/line_classifier.onnx`, which the browser loads via `onnxruntime-web`.
+
+Create a virtual environment (recommended) and install Python dependencies:
+```bash
+pip install scikit-learn onnx skl2onnx numpy
+```
+
+Run training:
+```bash
+python -m training.train_line_classifier
+```
+This will print train/test accuracy and export `line_classifier.onnx` into `frontend/public/models/`. Rebuild the frontend afterwards (`npm run build`) so the new model is available in production bundles.
+
+## Feature parity between Python and browser
+Both the Python scripts and the frontend use the same 11 numeric features per line in this order:
+1. length
+2. digitCount
+3. alphaCount
+4. spaceCount
+5. digitRatio
+6. alphaRatio
+7. hasX
+8. hasStar
+9. hasPercent
+10. hasCurrency
+11. priceLikeCount
+
+Keep this order intact when experimenting, otherwise the model and browser will disagree.
+
+## Notes
+- The OCR layer is intentionally a stub; replace `frontend/src/ocr.ts` with Tesseract.js or any OCR service if you need automated extraction.
+- The parser works even if the ONNX model is missing, relying solely on regex/rule heuristics.
+- Training samples are appended to a JSONL file for simplicity; rotate or move the file if it grows large.
