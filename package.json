@@ -1,0 +1,26 @@
+{
+  "name": "bills",
+  "version": "1.0.0",
+  "description": "Browser-based receipt OCR and analysis demo",
+  "type": "module",
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc && cp src/style.css dist/style.css && npm run copy:pdf",
+    "copy:pdf": "node scripts/copy-pdf.mjs",
+    "dev": "npm run build && node dev-server.js"
+  },
+  "keywords": [
+    "ocr",
+    "receipts",
+    "tesseract",
+    "browser"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "pdfjs-dist": "^4.5.136"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
