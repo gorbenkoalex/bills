@@ -27,6 +27,10 @@ const previewImage = document.getElementById('preview') as HTMLImageElement;
 let currentItems: ReceiptItem[] = [];
 let currentFilename = '';
 
+function isPdf(file: File) {
+  return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+}
+
 function showStatus(message: string) {
   progressLabel.textContent = message;
 }
@@ -125,7 +129,7 @@ function exportToCsv(items: ReceiptItem[], filename: string) {
   link.click();
 }
 
-async function recognize(file: File) {
+async function recognize(file: File | Blob) {
   setProgress(5);
   showStatus('Завантаження зображення...');
   const { data } = await Tesseract.recognize(file, 'eng', {
@@ -138,25 +142,70 @@ async function recognize(file: File) {
   return data.text as string;
 }
 
+function showPreview(src: string) {
+  previewImage.src = src;
+  previewImage.classList.add('visible');
+}
+
 function setPreview(file: File) {
   currentFilename = file.name.replace(/\.[^.]+$/, '');
   const reader = new FileReader();
-  reader.onload = () => {
-    previewImage.src = reader.result as string;
-    previewImage.classList.add('visible');
-  };
+  reader.onload = () => showPreview(reader.result as string);
   reader.readAsDataURL(file);
+}
+
+async function renderPdfFirstPage(file: File): Promise<{ blob: Blob; dataUrl: string }> {
+  const buffer = await file.arrayBuffer();
+  const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
+  const pdf = await loadingTask.promise;
+  const page = await pdf.getPage(1);
+
+  const viewport = page.getViewport({ scale: 2 });
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  if (!context) {
+    throw new Error('Canvas is not supported in this browser');
+  }
+
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+
+  await page.render({ canvasContext: context, viewport }).promise;
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((result) => {
+      if (!result) {
+        reject(new Error('Не вдалося перетворити PDF у зображення'));
+        return;
+      }
+      resolve(result);
+    }, 'image/png');
+  });
+
+  const dataUrl = canvas.toDataURL('image/png');
+  return { blob, dataUrl };
 }
 
 async function handleFile(file?: File | null) {
   if (!file) return;
-  setPreview(file);
+  currentFilename = file.name.replace(/\.[^.]+$/, '');
   processButton.disabled = true;
   exportButton.disabled = true;
   setProgress(0);
   showStatus('Підготовка до розпізнавання...');
   try {
-    const text = await recognize(file);
+    let target: File | Blob = file;
+
+    if (isPdf(file)) {
+      showStatus('Рендеримо першу сторінку PDF...');
+      const rendered = await renderPdfFirstPage(file);
+      target = new File([rendered.blob], `${currentFilename}-page1.png`, { type: 'image/png' });
+      showPreview(rendered.dataUrl);
+    } else {
+      setPreview(file);
+    }
+
+    const text = await recognize(target as File);
     const parsed = parseReceipt(text);
     currentItems = parsed.items;
     renderSummary(parsed);
@@ -199,6 +248,11 @@ function wireFileInput() {
 }
 
 function init() {
+  if (typeof pdfjsLib !== 'undefined' && pdfjsLib?.GlobalWorkerOptions) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.min.js';
+  }
+
   wireFileInput();
   processButton.addEventListener('click', () => {
     if (fileInput.files && fileInput.files.length) {

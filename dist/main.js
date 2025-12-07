@@ -11,6 +11,9 @@ const exportButton = document.getElementById('export-csv');
 const previewImage = document.getElementById('preview');
 let currentItems = [];
 let currentFilename = '';
+function isPdf(file) {
+    return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+}
 function showStatus(message) {
     progressLabel.textContent = message;
 }
@@ -112,25 +115,62 @@ async function recognize(file) {
     });
     return data.text;
 }
+function showPreview(src) {
+    previewImage.src = src;
+    previewImage.classList.add('visible');
+}
 function setPreview(file) {
     currentFilename = file.name.replace(/\.[^.]+$/, '');
     const reader = new FileReader();
-    reader.onload = () => {
-        previewImage.src = reader.result;
-        previewImage.classList.add('visible');
-    };
+    reader.onload = () => showPreview(reader.result);
     reader.readAsDataURL(file);
+}
+async function renderPdfFirstPage(file) {
+    const buffer = await file.arrayBuffer();
+    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
+    const pdf = await loadingTask.promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) {
+        throw new Error('Canvas is not supported in this browser');
+    }
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: context, viewport }).promise;
+    const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((result) => {
+            if (!result) {
+                reject(new Error('Не вдалося перетворити PDF у зображення'));
+                return;
+            }
+            resolve(result);
+        }, 'image/png');
+    });
+    const dataUrl = canvas.toDataURL('image/png');
+    return { blob, dataUrl };
 }
 async function handleFile(file) {
     if (!file)
         return;
-    setPreview(file);
+    currentFilename = file.name.replace(/\.[^.]+$/, '');
     processButton.disabled = true;
     exportButton.disabled = true;
     setProgress(0);
     showStatus('Підготовка до розпізнавання...');
     try {
-        const text = await recognize(file);
+        let target = file;
+        if (isPdf(file)) {
+            showStatus('Рендеримо першу сторінку PDF...');
+            const rendered = await renderPdfFirstPage(file);
+            target = new File([rendered.blob], `${currentFilename}-page1.png`, { type: 'image/png' });
+            showPreview(rendered.dataUrl);
+        }
+        else {
+            setPreview(file);
+        }
+        const text = await recognize(target);
         const parsed = parseReceipt(text);
         currentItems = parsed.items;
         renderSummary(parsed);
@@ -170,6 +210,10 @@ function wireFileInput() {
     });
 }
 function init() {
+    if (typeof pdfjsLib !== 'undefined' && pdfjsLib?.GlobalWorkerOptions) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.min.js';
+    }
     wireFileInput();
     processButton.addEventListener('click', () => {
         if (fileInput.files && fileInput.files.length) {

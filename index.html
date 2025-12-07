@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./dist/style.css" />
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.js"></script>
   </head>
   <body>
     <header>
@@ -19,8 +20,8 @@
     <main class="container">
       <section class="panel">
         <div class="drop-zone">
-          <p><strong>Перетягніть</strong> чек сюди або <label class="file">оберіть файл<input type="file" id="receipt-file" accept="image/*" /></label></p>
-          <p class="muted">Підтримуються JPG, PNG, HEIC та інші формати зображень.</p>
+          <p><strong>Перетягніть</strong> чек сюди або <label class="file">оберіть файл<input type="file" id="receipt-file" accept="image/*,application/pdf" /></label></p>
+          <p class="muted">Підтримуються JPG, PNG, HEIC, PDF та інші формати зображень.</p>
           <div class="actions">
             <button id="process">Розпізнати чек</button>
             <span class="status" id="progress-label">Готово до роботи</span>
