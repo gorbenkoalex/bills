@@ -34,25 +34,31 @@ function normalizeNumber(input) {
 function parseReceipt(text) {
     const lines = text
         .split(/\r?\n/)
-        .map((line) => line.trim())
+        .map((line) => line.replace(/\s+/g, ' ').trim())
         .filter(Boolean);
+    const skipKeywords = /ukupno|za platiti|popust|kartic|gotovina|polog|pdv|napomena|artikl|cijena|suma|total/i;
     const itemMatches = [];
-    const priceLine = /(.+?)\s+(\d+(?:[.,]\d+)?)\s*(?:x|×)?\s*(\d+(?:[.,]\d+)?)/i;
-    for (const line of lines) {
-        const match = priceLine.exec(line);
-        if (match) {
-            const description = match[1].replace(/[^\w\s.-]/g, '').trim();
-            const quantity = normalizeNumber(match[2]);
-            const price = normalizeNumber(match[3]);
-            const total = Number((quantity * price).toFixed(2));
+    const priceLine = /^(?<desc>.+?)\s+(?<qty>\d+(?:[.,]\d+)?)\s*(?:x|×)?\s+(?<price>\d+(?:[.,]\d+))\s+(?<total>\d+(?:[.,]\d+))/i;
+    for (const rawLine of lines) {
+        if (skipKeywords.test(rawLine))
+            continue;
+        const match = priceLine.exec(rawLine);
+        if (match && match.groups) {
+            const description = match.groups.desc.replace(/[^\p{L}\p{N}\s.'-]/gu, '').trim();
+            const quantity = normalizeNumber(match.groups.qty);
+            const price = normalizeNumber(match.groups.price);
+            const explicitTotal = normalizeNumber(match.groups.total);
+            const total = explicitTotal || Number((quantity * price).toFixed(2));
             if (description && quantity > 0 && price > 0) {
                 itemMatches.push({ description, quantity, price, total });
             }
         }
     }
-    const storeLine = lines.find((line) => /store|market|shop|magazin/i.test(line));
+    const headerSlice = lines.slice(0, Math.min(10, lines.length));
+    const storeLine = headerSlice.find((line) => /plodine|market|store|shop|magazin/i.test(line)) ||
+        headerSlice.find((line) => /[A-ZА-Я][A-ZА-Я .'-]{3,}/.test(line));
     const dateMatch = text.match(/(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})/);
-    const totalMatch = text.match(/total[^\d]*([\d.,]+)$/im);
+    const totalMatch = text.match(/(?:za\s*platiti|ukupno)\s*[€$knhrd]*\s*([\d.,]+)/i) || text.match(/total[^\d]*([\d.,]+)$/im);
     return {
         storeName: storeLine,
         purchaseDate: dateMatch ? dateMatch[1] : undefined,
