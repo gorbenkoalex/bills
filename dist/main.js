@@ -13,6 +13,7 @@ let currentItems = [];
 let currentFilename = '';
 let pdfReadyPromise = null;
 let pdfFromCdn = false;
+let pdfModule = null;
 function isPdf(file) {
     return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
 }
@@ -127,61 +128,48 @@ function setPreview(file) {
     reader.onload = () => showPreview(reader.result);
     reader.readAsDataURL(file);
 }
-function getPdfJs() {
-    return window.pdfjsLib;
-}
-function loadScript(src) {
-    return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = src;
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error(`Не вдалося завантажити ${src}`));
-        document.head.appendChild(script);
-    });
-}
 async function ensurePdfJs() {
-    if (getPdfJs()) {
-        return;
+    if (pdfModule) {
+        return pdfModule;
     }
     if (!pdfReadyPromise) {
         pdfReadyPromise = (async () => {
-            const localScript = './dist/pdf.min.js';
-            const cdnScript = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.js';
+            const localModule = './dist/pdf.min.mjs';
+            const cdnModule = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.mjs';
             let lastError = null;
+            const importWithHint = async (src) => import(/* webpackIgnore: true */ src);
             try {
-                await loadScript(localScript);
+                pdfModule = await importWithHint(localModule);
             }
             catch (error) {
                 lastError = error instanceof Error ? error : new Error(String(error));
                 console.warn('Локальний pdf.js не знайдено, пробуємо CDN');
                 pdfFromCdn = true;
                 try {
-                    await loadScript(cdnScript);
+                    pdfModule = await importWithHint(cdnModule);
                 }
                 catch (cdnError) {
-                    const message = 'Не вдалося завантажити pdf.js. Встановіть залежності (npm install) або додайте pdf.min.js/pdf.worker.min.js у dist, або надайте доступ до CDN.';
+                    const message = 'Не вдалося завантажити pdf.js. Встановіть залежності (npm install) або додайте pdf.min.mjs/pdf.worker.min.mjs у dist, або надайте доступ до CDN.';
                     throw lastError ? new Error(`${message}\nОстання помилка: ${lastError.message}`) : cdnError;
                 }
             }
-            const pdfjsLibInstance = getPdfJs();
-            if (!pdfjsLibInstance) {
+            if (!pdfModule) {
                 throw new Error('pdf.js не завантажився, підтримка PDF недоступна.');
             }
-            if (pdfjsLibInstance?.GlobalWorkerOptions) {
-                pdfjsLibInstance.GlobalWorkerOptions.workerSrc = pdfFromCdn
-                    ? 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.min.js'
-                    : './dist/pdf.worker.min.js';
+            const workerSrc = pdfFromCdn
+                ? 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.min.mjs'
+                : './dist/pdf.worker.min.mjs';
+            if (pdfModule?.GlobalWorkerOptions) {
+                pdfModule.GlobalWorkerOptions.workerSrc = workerSrc;
+                pdfModule.GlobalWorkerOptions.workerPort = null;
             }
+            return pdfModule;
         })();
     }
     return pdfReadyPromise;
 }
 async function renderPdfFirstPage(file) {
-    await ensurePdfJs();
-    const pdfjsLibInstance = getPdfJs();
-    if (!pdfjsLibInstance) {
-        throw new Error('pdf.js не завантажився, підтримка PDF недоступна.');
-    }
+    const pdfjsLibInstance = await ensurePdfJs();
     const buffer = await file.arrayBuffer();
     const loadingTask = pdfjsLibInstance.getDocument({ data: new Uint8Array(buffer) });
     const pdf = await loadingTask.promise;
@@ -267,10 +255,6 @@ function wireFileInput() {
     });
 }
 function init() {
-    if (typeof pdfjsLib !== 'undefined' && pdfjsLib?.GlobalWorkerOptions) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc =
-            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.min.js';
-    }
     wireFileInput();
     processButton.addEventListener('click', () => {
         if (fileInput.files && fileInput.files.length) {

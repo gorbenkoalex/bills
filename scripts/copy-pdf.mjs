@@ -2,7 +2,7 @@ import { copyFileSync, existsSync, mkdirSync } from 'fs';
 import path from 'path';
 
 const distDir = path.join('dist');
-const files = ['pdf.min.js', 'pdf.worker.min.js'];
+const files = ['pdf.min.mjs', 'pdf.worker.min.mjs'];
 const candidates = [
   path.join('node_modules', 'pdfjs-dist', 'build'),
   path.join('node_modules', 'pdfjs-dist', 'legacy', 'build'),
@@ -22,7 +22,7 @@ if (foundBase) {
     console.log(`copied ${file} from ${foundBase}`);
   }
 } else {
-  console.warn(
-    'pdf.js assets not found. Run "npm install" to download pdfjs-dist or place pdf.min.js/pdf.worker.min.js into dist/ manually.'
-  );
+    console.warn(
+      'pdf.js assets not found. Run "npm install" to download pdfjs-dist or place pdf.min.mjs/pdf.worker.min.mjs into dist/ manually.'
+    );
 }
