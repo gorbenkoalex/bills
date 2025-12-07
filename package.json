@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "clean": "rm -rf dist",
-    "build": "npm run clean && tsc && cp src/style.css dist/style.css"
+    "build": "npm run clean && tsc && cp src/style.css dist/style.css",
+    "dev": "npm run build && node dev-server.js"
   },
   "keywords": ["ocr", "receipts", "tesseract", "browser"],
   "author": "",
