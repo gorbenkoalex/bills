@@ -11,6 +11,8 @@ const exportButton = document.getElementById('export-csv');
 const previewImage = document.getElementById('preview');
 let currentItems = [];
 let currentFilename = '';
+let pdfReadyPromise = null;
+let pdfFromCdn = false;
 function isPdf(file) {
     return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
 }
@@ -125,9 +127,53 @@ function setPreview(file) {
     reader.onload = () => showPreview(reader.result);
     reader.readAsDataURL(file);
 }
+function getPdfJs() {
+    return window.pdfjsLib;
+}
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`Не вдалося завантажити ${src}`));
+        document.head.appendChild(script);
+    });
+}
+async function ensurePdfJs() {
+    if (getPdfJs()) {
+        return;
+    }
+    if (!pdfReadyPromise) {
+        pdfReadyPromise = (async () => {
+            try {
+                await loadScript('./dist/pdf.min.js');
+            }
+            catch (localError) {
+                console.warn('Локальний pdf.js не знайдено, пробуємо CDN', localError);
+                pdfFromCdn = true;
+                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.js');
+            }
+            const pdfjsLibInstance = getPdfJs();
+            if (!pdfjsLibInstance) {
+                throw new Error('pdf.js не завантажився, підтримка PDF недоступна.');
+            }
+            if (pdfjsLibInstance?.GlobalWorkerOptions) {
+                pdfjsLibInstance.GlobalWorkerOptions.workerSrc = pdfFromCdn
+                    ? 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.min.js'
+                    : './dist/pdf.worker.min.js';
+            }
+        })();
+    }
+    return pdfReadyPromise;
+}
 async function renderPdfFirstPage(file) {
+    await ensurePdfJs();
+    const pdfjsLibInstance = getPdfJs();
+    if (!pdfjsLibInstance) {
+        throw new Error('pdf.js не завантажився, підтримка PDF недоступна.');
+    }
     const buffer = await file.arrayBuffer();
-    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
+    const loadingTask = pdfjsLibInstance.getDocument({ data: new Uint8Array(buffer) });
     const pdf = await loadingTask.promise;
     const page = await pdf.getPage(1);
     const viewport = page.getViewport({ scale: 2 });
@@ -182,7 +228,8 @@ async function handleFile(file) {
     }
     catch (error) {
         console.error(error);
-        showStatus('Сталася помилка під час розпізнавання.');
+        const message = error instanceof Error ? error.message : 'Сталася помилка під час розпізнавання.';
+        showStatus(message);
     }
     finally {
         processButton.disabled = false;

@@ -26,6 +26,8 @@ const previewImage = document.getElementById('preview') as HTMLImageElement;
 
 let currentItems: ReceiptItem[] = [];
 let currentFilename = '';
+let pdfReadyPromise: Promise<void> | null = null;
+let pdfFromCdn = false;
 
 function isPdf(file: File) {
   return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
@@ -154,9 +156,59 @@ function setPreview(file: File) {
   reader.readAsDataURL(file);
 }
 
+function getPdfJs() {
+  return (window as unknown as { pdfjsLib?: any }).pdfjsLib;
+}
+
+function loadScript(src: string) {
+  return new Promise<void>((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Не вдалося завантажити ${src}`));
+    document.head.appendChild(script);
+  });
+}
+
+async function ensurePdfJs() {
+  if (getPdfJs()) {
+    return;
+  }
+
+  if (!pdfReadyPromise) {
+    pdfReadyPromise = (async () => {
+      try {
+        await loadScript('./dist/pdf.min.js');
+      } catch (localError) {
+        console.warn('Локальний pdf.js не знайдено, пробуємо CDN', localError);
+        pdfFromCdn = true;
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.js');
+      }
+
+      const pdfjsLibInstance = getPdfJs();
+      if (!pdfjsLibInstance) {
+        throw new Error('pdf.js не завантажився, підтримка PDF недоступна.');
+      }
+
+      if (pdfjsLibInstance?.GlobalWorkerOptions) {
+        pdfjsLibInstance.GlobalWorkerOptions.workerSrc = pdfFromCdn
+          ? 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.min.js'
+          : './dist/pdf.worker.min.js';
+      }
+    })();
+  }
+
+  return pdfReadyPromise;
+}
+
 async function renderPdfFirstPage(file: File): Promise<{ blob: Blob; dataUrl: string }> {
+  await ensurePdfJs();
+  const pdfjsLibInstance = getPdfJs();
+  if (!pdfjsLibInstance) {
+    throw new Error('pdf.js не завантажився, підтримка PDF недоступна.');
+  }
   const buffer = await file.arrayBuffer();
-  const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
+  const loadingTask = pdfjsLibInstance.getDocument({ data: new Uint8Array(buffer) });
   const pdf = await loadingTask.promise;
   const page = await pdf.getPage(1);
 
@@ -216,7 +268,8 @@ async function handleFile(file?: File | null) {
     setProgress(100);
   } catch (error) {
     console.error(error);
-    showStatus('Сталася помилка під час розпізнавання.');
+    const message = error instanceof Error ? error.message : 'Сталася помилка під час розпізнавання.';
+    showStatus(message);
   } finally {
     processButton.disabled = false;
   }
