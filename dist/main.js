@@ -143,33 +143,25 @@ async function ensurePdfJs() {
     if (getPdfJs()) {
         return;
     }
-    const scriptAvailable = async (src) => {
-        try {
-            const response = await fetch(src, { method: 'HEAD' });
-            return response.ok;
-        }
-        catch {
-            return false;
-        }
-    };
     if (!pdfReadyPromise) {
         pdfReadyPromise = (async () => {
             const localScript = './dist/pdf.min.js';
             const cdnScript = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.js';
-            const localAvailable = await scriptAvailable(localScript);
+            let lastError = null;
             try {
-                if (localAvailable) {
-                    await loadScript(localScript);
-                }
-                else {
-                    console.warn('Локальний pdf.js не знайдено, пробуємо CDN');
-                    pdfFromCdn = true;
+                await loadScript(localScript);
+            }
+            catch (error) {
+                lastError = error instanceof Error ? error : new Error(String(error));
+                console.warn('Локальний pdf.js не знайдено, пробуємо CDN');
+                pdfFromCdn = true;
+                try {
                     await loadScript(cdnScript);
                 }
-            }
-            catch (loadError) {
-                throw new Error('Не вдалося завантажити pdf.js. Встановіть залежності (npm install) або додайте pdf.min.js/pdf.worker.min.js у dist, ' +
-                    'або надайте доступ до CDN.');
+                catch (cdnError) {
+                    const message = 'Не вдалося завантажити pdf.js. Встановіть залежності (npm install) або додайте pdf.min.js/pdf.worker.min.js у dist, або надайте доступ до CDN.';
+                    throw lastError ? new Error(`${message}\nОстання помилка: ${lastError.message}`) : cdnError;
+                }
             }
             const pdfjsLibInstance = getPdfJs();
             if (!pdfjsLibInstance) {
