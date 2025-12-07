@@ -6,7 +6,7 @@
   "scripts": {
     "clean": "rm -rf dist",
     "build": "npm run clean && tsc && cp src/style.css dist/style.css && npm run copy:pdf",
-    "copy:pdf": "node -e \"const fs=require('fs');const path=require('path');const srcFile=(name)=>path.join('node_modules','pdfjs-dist','build',name);const distFile=(name)=>path.join('dist',name);const files=['pdf.min.js','pdf.worker.min.js'];if(!fs.existsSync('dist'))fs.mkdirSync('dist');if(files.every((f)=>fs.existsSync(srcFile(f)))){for(const f of files){fs.copyFileSync(srcFile(f),distFile(f));console.log('copied',f);} } else {console.warn('pdf.js not installed; skipping copy. PDF support will fall back to CDN.');}\"",
+    "copy:pdf": "node scripts/copy-pdf.mjs",
     "dev": "npm run build && node dev-server.js"
   },
   "keywords": [
