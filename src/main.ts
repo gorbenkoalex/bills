@@ -56,21 +56,48 @@ function parseReceipt(text: string): ParsedReceipt {
     .map((line) => line.replace(/\s+/g, ' ').trim())
     .filter(Boolean);
 
-  const skipKeywords = /ukupno|za platiti|popust|kartic|gotovina|polog|pdv|napomena|artikl|cijena|suma|total/i;
+  const skipKeywords =
+    /ukupno|za platiti|popust|kartic|gotovina|polog|pdv|napomena|artikl|cijena|suma|total|tax|change|payed|paid|summary|resume|resuma|bon/i;
   const itemMatches: ReceiptItem[] = [];
-  const priceLine =
-    /^(?<desc>.+?)\s+(?<qty>\d+(?:[.,]\d+)?)\s*(?:x|×)?\s+(?<price>\d+(?:[.,]\d+))\s+(?<total>\d+(?:[.,]\d+))/i;
+
+  const itemPatterns = [
+    /^(?<desc>.+?)\s+(?<qty>\d+(?:[.,]\d+)?)\s*(?:x|×|х)?\s+(?<price>\d+(?:[.,]\d+))\s*[:=×x]?\s+(?<total>\d+(?:[.,]\d+))/i,
+    /^(?<desc>.+?)\s+(?<qty>\d+(?:[.,]\d+)?)\s*(?:шт|pc|pcs)?\s+(?<total>\d+(?:[.,]\d+))$/i,
+    /^(?<desc>[\p{L}\p{N} .,'"-]{3,}?)\s+(?<price>\d+(?:[.,]\d+))\s+(?<total>\d+(?:[.,]\d+))$/iu,
+  ];
+
+  const cleanDescription = (desc: string) => desc.replace(/[^\p{L}\p{N}\s.'-]/gu, '').trim();
 
   for (const rawLine of lines) {
     if (skipKeywords.test(rawLine)) continue;
-    const match = priceLine.exec(rawLine);
-    if (match && match.groups) {
-      const description = match.groups.desc.replace(/[^\p{L}\p{N}\s.'-]/gu, '').trim();
-      const quantity = normalizeNumber(match.groups.qty);
-      const price = normalizeNumber(match.groups.price);
-      const explicitTotal = normalizeNumber(match.groups.total);
-      const total = explicitTotal || Number((quantity * price).toFixed(2));
-      if (description && quantity > 0 && price > 0) {
+
+    let matched = false;
+    for (const pattern of itemPatterns) {
+      const match = pattern.exec(rawLine);
+      if (match && match.groups) {
+        matched = true;
+        const description = cleanDescription(match.groups.desc);
+        const quantity = normalizeNumber(match.groups.qty || '1');
+        const price = normalizeNumber(match.groups.price || match.groups.total);
+        const explicitTotal = normalizeNumber(match.groups.total);
+        const total = explicitTotal || Number((quantity * price).toFixed(2));
+        if (description && quantity > 0 && price > 0 && total > 0) {
+          itemMatches.push({ description, quantity, price, total });
+        }
+        break;
+      }
+    }
+
+    if (matched) continue;
+
+    const fallbackNumbers = [...rawLine.matchAll(/\d+[.,]\d+/g)].map((m) => normalizeNumber(m[0]));
+    if (fallbackNumbers.length >= 2) {
+      const description = cleanDescription(rawLine.replace(/\d+[.,]\d+/g, '').trim());
+      const [first, second] = fallbackNumbers;
+      const price = Math.min(first, second);
+      const total = Math.max(first, second);
+      const quantity = total && price ? Math.max(1, Number((total / price).toFixed(2))) : 1;
+      if (description && total > 0 && price > 0) {
         itemMatches.push({ description, quantity, price, total });
       }
     }
@@ -78,17 +105,41 @@ function parseReceipt(text: string): ParsedReceipt {
 
   const headerSlice = lines.slice(0, Math.min(10, lines.length));
   const storeLine =
-    headerSlice.find((line) => /plodine|market|store|shop|magazin/i.test(line)) ||
-    headerSlice.find((line) => /[A-ZА-Я][A-ZА-Я .'-]{3,}/.test(line));
+    headerSlice.find((line) => /plodine|market|store|shop|magazin|coop|kaufland|spar|lidl/i.test(line)) ||
+    headerSlice.find((line) => /[A-ZА-ЯЇІЄҐ][A-ZА-ЯЇІЄҐ .'-]{3,}/.test(line));
 
   const dateMatch = text.match(/(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})/);
-  const totalMatch =
-    text.match(/(?:za\s*platiti|ukupno)\s*[€$knhrd]*\s*([\d.,]+)/i) || text.match(/total[^\d]*([\d.,]+)$/im);
+
+  const totalKeywords = /(za\s*platiti|ukupno|total|summa|сума|всього|итого|amount due|grand total|balance)/i;
+  let grandTotal: number | undefined;
+
+  for (const line of lines.slice(-15).reverse()) {
+    if (totalKeywords.test(line)) {
+      const numberMatch = [...line.matchAll(/\d+[.,]\d+/g)].pop();
+      if (numberMatch) {
+        grandTotal = normalizeNumber(numberMatch[0]);
+        break;
+      }
+    }
+  }
+
+  if (!grandTotal) {
+    const numericCandidates = lines
+      .slice(-15)
+      .flatMap((line) => [...line.matchAll(/\d+[.,]\d+/g)].map((m) => normalizeNumber(m[0])));
+    grandTotal = numericCandidates.length ? Math.max(...numericCandidates) : undefined;
+  }
+
+  if (!grandTotal && itemMatches.length) {
+    grandTotal = Number(
+      itemMatches.reduce((sum, item) => sum + (Number.isFinite(item.total) ? item.total : 0), 0).toFixed(2)
+    );
+  }
 
   return {
     storeName: storeLine,
     purchaseDate: dateMatch ? dateMatch[1] : undefined,
-    grandTotal: totalMatch ? normalizeNumber(totalMatch[1]) : undefined,
+    grandTotal,
     items: itemMatches,
     rawText: text,
   };
