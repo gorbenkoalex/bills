@@ -175,14 +175,34 @@ async function ensurePdfJs() {
     return;
   }
 
+  const scriptAvailable = async (src: string) => {
+    try {
+      const response = await fetch(src, { method: 'HEAD' });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  };
+
   if (!pdfReadyPromise) {
     pdfReadyPromise = (async () => {
+      const localScript = './dist/pdf.min.js';
+      const cdnScript = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.js';
+      const localAvailable = await scriptAvailable(localScript);
+
       try {
-        await loadScript('./dist/pdf.min.js');
-      } catch (localError) {
-        console.warn('Локальний pdf.js не знайдено, пробуємо CDN', localError);
-        pdfFromCdn = true;
-        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.js');
+        if (localAvailable) {
+          await loadScript(localScript);
+        } else {
+          console.warn('Локальний pdf.js не знайдено, пробуємо CDN');
+          pdfFromCdn = true;
+          await loadScript(cdnScript);
+        }
+      } catch (loadError) {
+        throw new Error(
+          'Не вдалося завантажити pdf.js. Встановіть залежності (npm install) або додайте pdf.min.js/pdf.worker.min.js у dist, ' +
+            'або надайте доступ до CDN.'
+        );
       }
 
       const pdfjsLibInstance = getPdfJs();
