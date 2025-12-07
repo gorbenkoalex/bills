@@ -25,13 +25,16 @@ npm install
 ```bash
 npm run dev
 ```
-The app will be available on http://localhost:5173.
+The app will be available on http://localhost:5173. The `predev` hook copies
+`onnxruntime-web`'s `.wasm` runtime files into `frontend/public/wasm` so the
+browser can load the model without MIME-type errors.
 
 ### Build for production
 ```bash
 npm run build
 ```
-The static assets are emitted into `dist/`.
+The static assets are emitted into `dist/`. The `prebuild` hook also copies the
+ONNX wasm artifacts for production hosting.
 
 ## Backend
 

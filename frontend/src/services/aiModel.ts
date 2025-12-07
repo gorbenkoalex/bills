@@ -5,6 +5,11 @@ import type { LineClass } from '../types';
 const MODEL_URL = '/models/line_classifier.onnx';
 const LABELS: LineClass[] = ['ITEM', 'OTHER', 'TOTAL'];
 
+// Point the wasm loader to the public assets we copy during dev/build so the
+// runtime fetches .wasm files instead of the HTML fallback that causes
+// "expected magic word" errors.
+ort.env.wasm.wasmPaths = '/wasm';
+
 let session: ort.InferenceSession | null = null;
 let modelError: string | null = null;
 
