@@ -16,6 +16,14 @@ const wasmFiles = [
   'ort-wasm-simd-threaded.asyncify.wasm'
 ];
 
+// The runtime dynamically imports the matching .mjs shim next to the wasm, so
+// we mirror those files as well to avoid MIME-type issues from HTML fallbacks.
+const moduleFiles = [
+  'ort-wasm-simd-threaded.mjs',
+  'ort-wasm-simd-threaded.jsep.mjs',
+  'ort-wasm-simd-threaded.asyncify.mjs'
+];
+
 if (!fs.existsSync(sourceDir)) {
   console.warn('onnxruntime-web is not installed; skipping wasm copy');
   process.exit(0);
@@ -25,6 +33,17 @@ fs.mkdirSync(targetDir, { recursive: true });
 
 const missing = [];
 for (const file of wasmFiles) {
+  const from = path.join(sourceDir, file);
+  const to = path.join(targetDir, file);
+  if (fs.existsSync(from)) {
+    fs.copyFileSync(from, to);
+    console.log(`copied ${file}`);
+  } else {
+    missing.push(file);
+  }
+}
+
+for (const file of moduleFiles) {
   const from = path.join(sourceDir, file);
   const to = path.join(targetDir, file);
   if (fs.existsSync(from)) {

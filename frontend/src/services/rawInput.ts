@@ -1,9 +1,10 @@
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
+import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import type { RawReceiptInput } from '../types';
 
-// Configure pdf.js worker to load from CDN when needed.
-GlobalWorkerOptions.workerSrc =
-  GlobalWorkerOptions.workerSrc || 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.worker.min.js';
+// Configure pdf.js worker to load from the locally served asset to avoid CDN
+// failures and MIME-type issues.
+GlobalWorkerOptions.workerSrc = GlobalWorkerOptions.workerSrc || workerSrc;
 
 async function extractPdfText(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();

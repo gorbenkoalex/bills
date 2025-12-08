@@ -18,6 +18,10 @@ const defaultConfig: InferenceConfig = {
   localVersion: '0.0.0'
 };
 
+// Ensure the wasm assets are fetched from the Vite/Vercel-served /wasm folder
+// where we copy the artifacts with correct MIME types.
+ort.env.wasm.wasmPaths = '/wasm';
+
 const sessions: Partial<Record<'live' | 'local', ort.InferenceSession>> = {};
 const sessionErrors: Partial<Record<'live' | 'local', string>> = {};
 
