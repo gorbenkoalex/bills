@@ -20,7 +20,7 @@ Browser-first receipt parsing with a real ONNX classifier, dual-model (live/loca
 ```bash
 npm install
 ```
-This automatically copies the ONNX Runtime wasm and loader `.mjs` files into `frontend/public/wasm/`. If you clean `node_modules` or see MIME-type errors for `/wasm/ort-wasm-*.mjs` / `.wasm`, rerun:
+This automatically copies the ONNX Runtime wasm and loader `.mjs` files into `frontend/public/wasm/`. The frontend now runs ORT in single-threaded mode (proxy disabled) to avoid Vite importing the `.mjs` loader as a module, so the plain SIMD `.wasm` files are required. Threaded artifacts are still copied in case you opt-in locally. If you clean `node_modules` or see MIME-type errors for `/wasm/ort-wasm-*.mjs` / `.wasm`, rerun:
 ```bash
 npm run copy:wasm
 ```

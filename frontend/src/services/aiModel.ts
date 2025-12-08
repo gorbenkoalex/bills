@@ -23,7 +23,15 @@ const defaultConfig: InferenceConfig = {
 // filename (e.g. `ort-wasm-simd-threaded.jsep.mjs`) directly after this base
 // string. Without the slash the request becomes `/wasmort-wasm-...`, causing a
 // 404 that surfaces as a WASM "expected magic word" error.
+//
+// We also disable the proxy (worker) runtime and force a single-threaded load
+// so the runtime fetches the plain `.wasm` binaries instead of attempting to
+// dynamically import the JSEP `.mjs` shims. Vite complains when a public asset
+// is imported as a module ("should not be imported from source code"), so this
+// avoids the module import path entirely while keeping SIMD enabled.
 ort.env.wasm.wasmPaths = '/wasm/';
+ort.env.wasm.proxy = false;
+ort.env.wasm.numThreads = 1;
 
 const sessions: Partial<Record<'live' | 'local', ort.InferenceSession>> = {};
 const sessionErrors: Partial<Record<'live' | 'local', string>> = {};
