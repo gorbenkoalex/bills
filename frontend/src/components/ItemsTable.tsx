@@ -8,35 +8,37 @@ interface Props {
 }
 
 export const ItemsTable: React.FC<Props> = ({ items, onItemChange, onAddRow }) => (
-  <div className="card">
-    <div className="status-row">
-      <h3>Items</h3>
-      <button type="button" onClick={onAddRow}>
+  <div className="card space-y-4">
+    <div className="flex items-center justify-between">
+      <h3 className="text-lg font-semibold">Items</h3>
+      <button type="button" className="ghost-btn" onClick={onAddRow}>
         Add row
       </button>
     </div>
-    <div className="table-wrapper">
-      <table>
-        <thead>
+    <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
+      <table className="receipt-table">
+        <thead className="bg-slate-50">
           <tr>
-            <th>Description</th>
-            <th>Qty</th>
-            <th>Price</th>
-            <th>Total</th>
+            <th className="px-3">Description</th>
+            <th className="px-3">Qty</th>
+            <th className="px-3">Price</th>
+            <th className="px-3">Total</th>
           </tr>
         </thead>
         <tbody>
           {items.map((item, idx) => (
-            <tr key={idx}>
-              <td>
+            <tr key={idx} className="odd:bg-white even:bg-slate-50/40">
+              <td className="px-3">
                 <input
+                  className="input-field"
                   value={item.description}
                   onChange={(e) => onItemChange(idx, 'description', e.target.value)}
                   placeholder="Item"
                 />
               </td>
-              <td>
+              <td className="px-3">
                 <input
+                  className="input-field"
                   type="number"
                   step="0.01"
                   value={item.quantity ?? ''}
@@ -44,8 +46,9 @@ export const ItemsTable: React.FC<Props> = ({ items, onItemChange, onAddRow }) =
                   placeholder="1"
                 />
               </td>
-              <td>
+              <td className="px-3">
                 <input
+                  className="input-field"
                   type="number"
                   step="0.01"
                   value={item.price ?? ''}
@@ -53,8 +56,9 @@ export const ItemsTable: React.FC<Props> = ({ items, onItemChange, onAddRow }) =
                   placeholder="0.00"
                 />
               </td>
-              <td>
+              <td className="px-3">
                 <input
+                  className="input-field"
                   type="number"
                   step="0.01"
                   value={item.total ?? ''}
@@ -66,7 +70,9 @@ export const ItemsTable: React.FC<Props> = ({ items, onItemChange, onAddRow }) =
           ))}
           {items.length === 0 && (
             <tr>
-              <td colSpan={4}>No items parsed yet.</td>
+              <td className="px-3 py-4 text-sm text-slate-600" colSpan={4}>
+                No items parsed yet.
+              </td>
             </tr>
           )}
         </tbody>

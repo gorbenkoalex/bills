@@ -18,30 +18,38 @@ export const FileUpload: React.FC<Props> = ({
   modelLabel
 }) => {
   return (
-    <div className="card">
-      <div className="grid">
-        <div>
-          <label htmlFor="file">Upload receipt (JPG, PNG, HEIC, PDF)</label>
+    <div className="card space-y-4">
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <label className="label-text" htmlFor="file">
+            Upload receipt (JPG, PNG, HEIC, PDF)
+          </label>
           <input
             id="file"
             type="file"
+            className="input-field"
             accept="image/jpeg,image/png,image/heic,application/pdf"
             onChange={(e) => onFileSelected(e.target.files?.[0] ?? null)}
           />
-          <p className="muted">Files are processed client-side. OCR is mocked for now, so pasted text also works.</p>
+          <p className="text-xs text-slate-600">
+            Files are processed client-side. OCR is mocked for now, so pasted text also works.
+          </p>
         </div>
-        <div>
-          <label htmlFor="raw">Raw text</label>
+        <div className="space-y-2">
+          <label className="label-text" htmlFor="raw">
+            Raw text
+          </label>
           <textarea
             id="raw"
+            className="input-field min-h-[160px] resize-y"
             value={rawText}
             onChange={(e) => onRawTextChange(e.target.value)}
             placeholder="Paste OCR text or type here"
           />
         </div>
       </div>
-      <div className="actions" style={{ marginTop: 12 }}>
-        <button onClick={onParse} disabled={loading}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <button className="primary-btn" onClick={onParse} disabled={loading}>
           {loading ? 'Parsing…' : 'Parse'}
         </button>
         <span className="badge">{modelLabel}</span>

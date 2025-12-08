@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import './styles.css';
 import { FileUpload } from './components/FileUpload';
 import { Summary } from './components/Summary';
 import { ItemsTable } from './components/ItemsTable';
@@ -105,42 +104,53 @@ export function App() {
     : `Model: rules only${modelStatus.error ? ` (${modelStatus.error})` : ''}`;
 
   return (
-    <div className="app-shell">
-      <div className="card">
-        <h1>Receipt parser with ONNX + rules</h1>
-        <p className="footer-note">
-          Upload JPG/PNG/HEIC/PDF or paste OCR text, parse, edit, and confirm to build a better model over time.
-        </p>
-      </div>
-
-      <FileUpload
-        onFileSelected={setFile}
-        rawText={rawText}
-        onRawTextChange={setRawText}
-        onParse={handleParse}
-        loading={loading}
-        modelLabel={modelLabel}
-      />
-
-      <Summary
-        storeName={edited.storeName}
-        purchaseDate={edited.purchaseDate}
-        grandTotal={edited.grandTotal}
-        onChange={handleSummaryChange}
-      />
-
-      <ItemsTable items={edited.items} onItemChange={handleItemChange} onAddRow={addEmptyRow} />
-
-      <div className="card">
-        <div className="actions">
-          <button type="button" onClick={handleSave}>
-            Save / Confirm
-          </button>
-          {saveStatus && <div className="alert">{saveStatus}</div>}
+    <div className="min-h-screen bg-slate-50">
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
+        <div className="card space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold">Receipt parser (rules only)</h1>
+              <p className="text-sm text-slate-600">
+                Upload JPG/PNG/HEIC/PDF or paste OCR text, parse, edit, and confirm to collect training samples.
+              </p>
+            </div>
+            <span className="badge">{modelLabel}</span>
+          </div>
+          <p className="text-sm text-slate-700">
+            The ONNX classifier is disabled per request; parsing always returns a fixed demo structure so you can focus on
+            UI and training data flow.
+          </p>
         </div>
-        <p className="footer-note">
-          Training sample contains raw text, the automatic parse, and your corrections to continuously improve the model.
-        </p>
+
+        <FileUpload
+          onFileSelected={setFile}
+          rawText={rawText}
+          onRawTextChange={setRawText}
+          onParse={handleParse}
+          loading={loading}
+          modelLabel={modelLabel}
+        />
+
+        <Summary
+          storeName={edited.storeName}
+          purchaseDate={edited.purchaseDate}
+          grandTotal={edited.grandTotal}
+          onChange={handleSummaryChange}
+        />
+
+        <ItemsTable items={edited.items} onItemChange={handleItemChange} onAddRow={addEmptyRow} />
+
+        <div className="card space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <button type="button" className="primary-btn" onClick={handleSave}>
+              Save / Confirm
+            </button>
+            {saveStatus && <div className="text-sm text-slate-700">{saveStatus}</div>}
+          </div>
+          <p className="text-sm text-slate-600">
+            Training sample contains raw text, the automatic parse, and your corrections to continuously improve the model.
+          </p>
+        </div>
       </div>
     </div>
   );
