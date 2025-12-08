@@ -63,6 +63,25 @@ function parseItems(lines: string[], labels: LineClass[]): ParsedItem[] {
       }
     }
   });
+  if (!items.length) {
+    // Fallback: run patterns across all lines regardless of model labels so
+    // receipts still yield items when the classifier fails to load.
+    lines.forEach((line) => {
+      for (const pattern of itemPatterns) {
+        const match = line.match(pattern);
+        if (match && match.groups) {
+          const { desc, qty, price, total } = match.groups as Record<string, string>;
+          items.push({
+            description: (desc || line).trim(),
+            quantity: normalizeNumber(qty),
+            price: normalizeNumber(price),
+            total: normalizeNumber(total)
+          });
+          return;
+        }
+      }
+    });
+  }
   return items;
 }
 

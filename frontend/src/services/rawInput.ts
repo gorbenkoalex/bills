@@ -1,4 +1,4 @@
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf';
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import type { RawReceiptInput } from '../types';
 

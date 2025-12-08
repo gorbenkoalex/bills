@@ -8,21 +8,39 @@ const root = path.resolve(new URL('.', import.meta.url).pathname, '..');
 const sourceDir = path.resolve(root, 'node_modules', 'onnxruntime-web', 'dist');
 const targetDir = path.resolve(root, 'frontend', 'src', 'wasm');
 
-// The packaged onnxruntime-web build currently ships threaded SIMD artifacts
-// only. We copy the threaded wasm binaries and their accompanying .mjs shims
-// into `frontend/src/wasm` so Vite can fingerprint and serve them as static
-// assets without attempting to transform imports from /public.
+// Copy both single-threaded and threaded ORT wasm artifacts so the runtime can
+// fall back gracefully when workers/threads are disabled. We keep the list
+// explicit to avoid pulling in unnecessary binaries.
 const wasmFiles = [
+  'ort-wasm.wasm',
+  'ort-wasm-simd.wasm',
+  'ort-wasm.jsep.wasm',
+  'ort-wasm-simd.jsep.wasm',
   'ort-wasm-simd-threaded.wasm',
   'ort-wasm-simd-threaded.jsep.wasm',
   'ort-wasm-simd-threaded.asyncify.wasm'
 ];
 
 const moduleFiles = [
+  'ort-wasm.mjs',
+  'ort-wasm-simd.mjs',
+  'ort-wasm.jsep.mjs',
+  'ort-wasm-simd.jsep.mjs',
   'ort-wasm-simd-threaded.mjs',
   'ort-wasm-simd-threaded.jsep.mjs',
   'ort-wasm-simd-threaded.asyncify.mjs'
 ];
+
+const fallbackMap = {
+  'ort-wasm.wasm': 'ort-wasm-simd-threaded.wasm',
+  'ort-wasm-simd.wasm': 'ort-wasm-simd-threaded.wasm',
+  'ort-wasm.jsep.wasm': 'ort-wasm-simd-threaded.jsep.wasm',
+  'ort-wasm-simd.jsep.wasm': 'ort-wasm-simd-threaded.jsep.wasm',
+  'ort-wasm.mjs': 'ort-wasm-simd-threaded.mjs',
+  'ort-wasm-simd.mjs': 'ort-wasm-simd-threaded.mjs',
+  'ort-wasm.jsep.mjs': 'ort-wasm-simd-threaded.jsep.mjs',
+  'ort-wasm-simd.jsep.mjs': 'ort-wasm-simd-threaded.jsep.mjs'
+};
 
 if (!fs.existsSync(sourceDir)) {
   console.warn('onnxruntime-web is not installed; skipping wasm copy');
@@ -32,26 +50,33 @@ if (!fs.existsSync(sourceDir)) {
 fs.mkdirSync(targetDir, { recursive: true });
 
 const missing = [];
-for (const file of wasmFiles) {
-  const from = path.join(sourceDir, file);
-  const to = path.join(targetDir, file);
-  if (fs.existsSync(from)) {
-    fs.copyFileSync(from, to);
+
+function copyWithFallback(file) {
+  const primary = path.join(sourceDir, file);
+  const target = path.join(targetDir, file);
+  if (fs.existsSync(primary)) {
+    fs.copyFileSync(primary, target);
     console.log(`copied ${file}`);
-  } else {
-    missing.push(file);
+    return true;
   }
+  const fallback = fallbackMap[file];
+  if (fallback) {
+    const fallbackPath = path.join(sourceDir, fallback);
+    if (fs.existsSync(fallbackPath)) {
+      fs.copyFileSync(fallbackPath, target);
+      console.log(`copied ${file} (fallback -> ${fallback})`);
+      return true;
+    }
+  }
+  return false;
+}
+
+for (const file of wasmFiles) {
+  if (!copyWithFallback(file)) missing.push(file);
 }
 
 for (const file of moduleFiles) {
-  const from = path.join(sourceDir, file);
-  const to = path.join(targetDir, file);
-  if (fs.existsSync(from)) {
-    fs.copyFileSync(from, to);
-    console.log(`copied ${file}`);
-  } else {
-    missing.push(file);
-  }
+  if (!copyWithFallback(file)) missing.push(file);
 }
 
 if (missing.length) {
