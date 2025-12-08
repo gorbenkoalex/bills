@@ -18,9 +18,12 @@ const defaultConfig: InferenceConfig = {
   localVersion: '0.0.0'
 };
 
-// Ensure the wasm assets are fetched from the Vite/Vercel-served /wasm folder
-// where we copy the artifacts with correct MIME types.
-ort.env.wasm.wasmPaths = '/wasm';
+// Ensure the wasm assets are fetched from the Vite/Vercel-served /wasm folder.
+// The trailing slash is important because onnxruntime-web concatenates the
+// filename (e.g. `ort-wasm-simd-threaded.jsep.mjs`) directly after this base
+// string. Without the slash the request becomes `/wasmort-wasm-...`, causing a
+// 404 that surfaces as a WASM "expected magic word" error.
+ort.env.wasm.wasmPaths = '/wasm/';
 
 const sessions: Partial<Record<'live' | 'local', ort.InferenceSession>> = {};
 const sessionErrors: Partial<Record<'live' | 'local', string>> = {};
