@@ -4,6 +4,7 @@
   "description": "Browser-based receipt parsing with ONNX-assisted line classification",
   "type": "module",
   "scripts": {
+    "postinstall": "npm run copy:wasm",
     "predev": "npm run copy:wasm",
     "dev": "vite --config vite.config.ts",
     "prebuild": "npm run copy:wasm",

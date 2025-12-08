@@ -20,6 +20,10 @@ Browser-first receipt parsing with a real ONNX classifier, dual-model (live/loca
 ```bash
 npm install
 ```
+This automatically copies the ONNX Runtime wasm and loader `.mjs` files into `frontend/public/wasm/`. If you clean `node_modules` or see MIME-type errors for `/wasm/ort-wasm-*.mjs` / `.wasm`, rerun:
+```bash
+npm run copy:wasm
+```
 
 ### Run in dev mode
 ```bash
