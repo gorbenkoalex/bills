@@ -1,0 +1,38 @@
+{
+  "name": "bills",
+  "version": "1.1.0",
+  "description": "Browser-based receipt parsing with ONNX-assisted line classification",
+  "type": "module",
+  "scripts": {
+    "predev": "npm run copy:wasm",
+    "dev": "vite --config vite.config.ts",
+    "prebuild": "npm run copy:wasm",
+    "build": "vite build --config vite.config.ts",
+    "preview": "vite preview --config vite.config.ts",
+    "server": "node server/index.js",
+    "lint": "tsc --noEmit",
+    "copy:wasm": "node scripts/copy-onnx-wasm.mjs"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "onnxruntime-web": "^1.20.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.17",
+    "@types/express": "^4.17.21",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.4.0",
+    "autoprefixer": "^10.4.22",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.17",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
