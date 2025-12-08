@@ -7,5 +7,5 @@ package-lock.json merge=union
 *.onnx binary
 *.wasm binary
 # Limit binary marking to actual artifacts so text docs (README, .gitkeep) stay diffable
-frontend/public/wasm/*.wasm binary
-frontend/public/wasm/*.mjs binary
+frontend/public/ort/*.wasm binary
+frontend/public/ort/*.mjs binary

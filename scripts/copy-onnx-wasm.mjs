@@ -6,9 +6,9 @@ import path from 'path';
 // "expected magic word" errors caused by HTML fallbacks on missing wasm files.
 const root = path.resolve(new URL('.', import.meta.url).pathname, '..');
 const sourceDir = path.resolve(root, 'node_modules', 'onnxruntime-web', 'dist');
-// Assets live under public/wasm so the runtime can fetch them directly without
+// Assets live under public/ort so the runtime can fetch them directly without
 // going through Vite's module pipeline.
-const targetDir = path.resolve(root, 'frontend', 'public', 'wasm');
+const targetDir = path.resolve(root, 'frontend', 'public', 'ort');
 
 // Copy both single-threaded and threaded ORT wasm artifacts so the runtime can
 // fall back gracefully when workers/threads are disabled. We keep the list
@@ -16,8 +16,7 @@ const targetDir = path.resolve(root, 'frontend', 'public', 'wasm');
 const wasmFiles = [
   'ort-wasm.wasm',
   'ort-wasm-simd.wasm',
-  'ort-wasm.jsep.wasm',
-  'ort-wasm-simd.jsep.wasm',
+  'ort-wasm-threaded.wasm',
   'ort-wasm-simd-threaded.wasm',
   'ort-wasm-simd-threaded.jsep.wasm',
   'ort-wasm-simd-threaded.asyncify.wasm'
@@ -26,8 +25,7 @@ const wasmFiles = [
 const moduleFiles = [
   'ort-wasm.mjs',
   'ort-wasm-simd.mjs',
-  'ort-wasm.jsep.mjs',
-  'ort-wasm-simd.jsep.mjs',
+  'ort-wasm-threaded.mjs',
   'ort-wasm-simd-threaded.mjs',
   'ort-wasm-simd-threaded.jsep.mjs',
   'ort-wasm-simd-threaded.asyncify.mjs'
@@ -36,12 +34,10 @@ const moduleFiles = [
 const fallbackMap = {
   'ort-wasm.wasm': 'ort-wasm-simd-threaded.wasm',
   'ort-wasm-simd.wasm': 'ort-wasm-simd-threaded.wasm',
-  'ort-wasm.jsep.wasm': 'ort-wasm-simd-threaded.jsep.wasm',
-  'ort-wasm-simd.jsep.wasm': 'ort-wasm-simd-threaded.jsep.wasm',
+  'ort-wasm-threaded.wasm': 'ort-wasm-simd-threaded.wasm',
   'ort-wasm.mjs': 'ort-wasm-simd-threaded.mjs',
   'ort-wasm-simd.mjs': 'ort-wasm-simd-threaded.mjs',
-  'ort-wasm.jsep.mjs': 'ort-wasm-simd-threaded.jsep.mjs',
-  'ort-wasm-simd.jsep.mjs': 'ort-wasm-simd-threaded.jsep.mjs'
+  'ort-wasm-threaded.mjs': 'ort-wasm-simd-threaded.mjs'
 };
 
 if (!fs.existsSync(sourceDir)) {

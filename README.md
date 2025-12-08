@@ -20,7 +20,7 @@ Browser-first receipt parsing with a real ONNX classifier, dual-model (live/loca
 ```bash
 npm install
 ```
-This automatically copies the ONNX Runtime wasm and loader `.mjs` files into `frontend/public/wasm/` so the browser fetches them directly with the correct MIME types. If you clean `node_modules` or see MIME-type errors for `/wasm/ort-wasm-*.mjs` / `.wasm`, rerun:
+This automatically copies the ONNX Runtime wasm and loader `.mjs` files into `frontend/public/ort/` so the browser fetches them directly with the correct MIME types. If you clean `node_modules` or see MIME-type errors for `/ort/ort-wasm-*.mjs` / `.wasm`, rerun:
 ```bash
 npm run copy:wasm
 ```
@@ -98,6 +98,6 @@ Keep this order intact when experimenting so the model and browser agree on inpu
 
 ## Reducing merge conflicts
 - Lockfiles use a union merge strategy via `.gitattributes` to minimize conflicts when dependency trees change across branches.
-- Generated assets remain untracked (`dist/`, runtime wasm/mjs artifacts under `frontend/public/wasm/`, ONNX models). Run `npm run build` and the helper copy scripts after pulling instead of committing build output.
-- The `frontend/public/wasm/README.md` stays tracked so the folder exists; only the runtime artifacts are ignored. This avoids Git treating documentation files as binary and prevents "binary files not supported" errors when diffing.
+- Generated assets remain untracked (`dist/`, runtime wasm/mjs artifacts under `frontend/public/ort/`, ONNX models). Run `npm run build` and the helper copy scripts after pulling instead of committing build output.
+- The `frontend/public/ort/README.md` stays tracked so the folder exists; only the runtime artifacts are ignored. This avoids Git treating documentation files as binary and prevents "binary files not supported" errors when diffing.
 - If you still hit conflicts, prefer recreating local artifacts (copy wasm/model files, rebuild) rather than merging generated content.

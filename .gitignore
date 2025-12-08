@@ -2,11 +2,11 @@ node_modules
 npm-debug.log*
 .DS_Store
 dist
-# Allow docs inside wasm folder while ignoring fetched runtime assets
-frontend/public/wasm/*.wasm
-frontend/public/wasm/*.mjs
-frontend/public/wasm/*.data
-frontend/public/wasm/*.worker.js
+# Allow docs inside ort folder while ignoring fetched runtime assets
+frontend/public/ort/*.wasm
+frontend/public/ort/*.mjs
+frontend/public/ort/*.data
+frontend/public/ort/*.worker.js
 frontend/public/models/*.onnx
 server/data/samples.jsonl
 .env
