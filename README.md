@@ -20,7 +20,7 @@ Browser-first receipt parsing with a real ONNX classifier, dual-model (live/loca
 ```bash
 npm install
 ```
-This automatically copies the ONNX Runtime wasm and loader `.mjs` files into `frontend/public/wasm/`. The frontend now runs ORT in single-threaded mode (proxy disabled) to avoid Vite importing the `.mjs` loader as a module, so the plain SIMD `.wasm` files are required. Threaded artifacts are still copied in case you opt-in locally. If you clean `node_modules` or see MIME-type errors for `/wasm/ort-wasm-*.mjs` / `.wasm`, rerun:
+This automatically copies the ONNX Runtime wasm and loader `.mjs` files into `frontend/src/wasm/`. Vite fingerprints those assets and the runtime loads them by URL mapping (no `/public` imports), which avoids the "should not be imported from source" errors seen when the `.mjs` shims are fetched directly. If you clean `node_modules` or see MIME-type errors for `/assets/ort-wasm-*.mjs` / `.wasm`, rerun:
 ```bash
 npm run copy:wasm
 ```
@@ -97,6 +97,6 @@ Keep this order intact when experimenting so the model and browser agree on inpu
 
 ## Reducing merge conflicts
 - Lockfiles use a union merge strategy via `.gitattributes` to minimize conflicts when dependency trees change across branches.
-- Generated assets remain untracked (`dist/`, `frontend/public/wasm/*.wasm|*.mjs`, ONNX models). Run `npm run build` and the helper copy scripts after pulling instead of committing build output.
+- Generated assets remain untracked (`dist/`, runtime wasm/mjs artifacts under `frontend/src/wasm/`, ONNX models). Run `npm run build` and the helper copy scripts after pulling instead of committing build output.
 - The `frontend/public/wasm/README.md` stays tracked so the folder exists; only the runtime artifacts are ignored. This avoids Git treating documentation files as binary and prevents "binary files not supported" errors when diffing.
 - If you still hit conflicts, prefer recreating local artifacts (copy wasm/model files, rebuild) rather than merging generated content.

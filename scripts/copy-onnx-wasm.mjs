@@ -6,28 +6,22 @@ import path from 'path';
 // "expected magic word" errors caused by HTML fallbacks on missing wasm files.
 const root = path.resolve(new URL('.', import.meta.url).pathname, '..');
 const sourceDir = path.resolve(root, 'node_modules', 'onnxruntime-web', 'dist');
-const targetDir = path.resolve(root, 'frontend', 'public', 'wasm');
+const targetDir = path.resolve(root, 'frontend', 'src', 'wasm');
 
-// We copy both the threaded SIMD build and the single-threaded SIMD build so
-// the runtime can pick the correct artifact for the configuration we set in
-// `aiModel.ts` (single-threaded, proxy disabled). We keep the threaded files in
-// case someone flips the flags back on locally.
+// The packaged onnxruntime-web build currently ships threaded SIMD artifacts
+// only. We copy the threaded wasm binaries and their accompanying .mjs shims
+// into `frontend/src/wasm` so Vite can fingerprint and serve them as static
+// assets without attempting to transform imports from /public.
 const wasmFiles = [
   'ort-wasm-simd-threaded.wasm',
   'ort-wasm-simd-threaded.jsep.wasm',
-  'ort-wasm-simd-threaded.asyncify.wasm',
-  'ort-wasm-simd.wasm',
-  'ort-wasm.jsep.wasm'
+  'ort-wasm-simd-threaded.asyncify.wasm'
 ];
 
-// The runtime dynamically imports the matching .mjs shim next to the wasm, so
-// we mirror those files as well to avoid MIME-type issues from HTML fallbacks.
 const moduleFiles = [
   'ort-wasm-simd-threaded.mjs',
   'ort-wasm-simd-threaded.jsep.mjs',
-  'ort-wasm-simd-threaded.asyncify.mjs',
-  'ort-wasm-simd.mjs',
-  'ort-wasm.jsep.mjs'
+  'ort-wasm-simd-threaded.asyncify.mjs'
 ];
 
 if (!fs.existsSync(sourceDir)) {

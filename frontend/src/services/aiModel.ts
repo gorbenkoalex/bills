@@ -1,4 +1,13 @@
 import * as ort from 'onnxruntime-web';
+// Vite needs explicit imports so the wasm/mjs assets are fingerprinted and
+// served as static files instead of being treated as module transforms from
+// /public. We map each ORT artifact to a hashed URL via `?url` imports.
+import wasmThreaded from '../wasm/ort-wasm-simd-threaded.wasm?url';
+import wasmThreadedJsep from '../wasm/ort-wasm-simd-threaded.jsep.wasm?url';
+import wasmThreadedAsyncify from '../wasm/ort-wasm-simd-threaded.asyncify.wasm?url';
+import moduleThreaded from '../wasm/ort-wasm-simd-threaded.mjs?url';
+import moduleThreadedJsep from '../wasm/ort-wasm-simd-threaded.jsep.mjs?url';
+import moduleThreadedAsyncify from '../wasm/ort-wasm-simd-threaded.asyncify.mjs?url';
 import { extractLineFeatures } from './lineFeatures';
 import type { LineClass, ModelMode, ModelRunMetadata, RawReceiptInput } from '../types';
 
@@ -18,18 +27,19 @@ const defaultConfig: InferenceConfig = {
   localVersion: '0.0.0'
 };
 
-// Ensure the wasm assets are fetched from the Vite/Vercel-served /wasm folder.
-// The trailing slash is important because onnxruntime-web concatenates the
-// filename (e.g. `ort-wasm-simd-threaded.jsep.mjs`) directly after this base
-// string. Without the slash the request becomes `/wasmort-wasm-...`, causing a
-// 404 that surfaces as a WASM "expected magic word" error.
-//
-// We also disable the proxy (worker) runtime and force a single-threaded load
-// so the runtime fetches the plain `.wasm` binaries instead of attempting to
-// dynamically import the JSEP `.mjs` shims. Vite complains when a public asset
-// is imported as a module ("should not be imported from source code"), so this
-// avoids the module import path entirely while keeping SIMD enabled.
-ort.env.wasm.wasmPaths = '/wasm/';
+// Direct each expected ORT artifact to the fingerprinted asset URL Vite
+// produces so no /public imports happen at runtime. This prevents Vite from
+// throwing "should not be imported from source" errors for the `.mjs` shims.
+ort.env.wasm.wasmPaths = {
+  'ort-wasm-simd-threaded.wasm': wasmThreaded,
+  'ort-wasm-simd-threaded.jsep.wasm': wasmThreadedJsep,
+  'ort-wasm-simd-threaded.asyncify.wasm': wasmThreadedAsyncify,
+  'ort-wasm-simd-threaded.mjs': moduleThreaded,
+  'ort-wasm-simd-threaded.jsep.mjs': moduleThreadedJsep,
+  'ort-wasm-simd-threaded.asyncify.mjs': moduleThreadedAsyncify
+} as unknown as Record<string, string>;
+// Disable the proxy worker and threads to keep the runtime on the main thread
+// and avoid worker/JSEP module fetches that Vite would try to transform.
 ort.env.wasm.proxy = false;
 ort.env.wasm.numThreads = 1;
 

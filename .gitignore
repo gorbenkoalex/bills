@@ -7,6 +7,8 @@ frontend/public/wasm/*.wasm
 frontend/public/wasm/*.mjs
 frontend/public/wasm/*.data
 frontend/public/wasm/*.worker.js
+frontend/src/wasm/*.wasm
+frontend/src/wasm/*.mjs
 frontend/public/models/*.onnx
 server/data/samples.jsonl
 .env
