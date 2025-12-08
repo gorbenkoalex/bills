@@ -23,16 +23,22 @@ const defaultConfig: InferenceConfig = {
 // transform them as modules. This prevents "expected magic word" failures when
 // HTML is returned for wasm requests.
 const wasmBasePath = '/ort/';
-ort.env.wasm.wasmPaths = {
+const wasmFiles: Record<string, string> = {
   'ort-wasm.wasm': `${wasmBasePath}ort-wasm.wasm`,
   'ort-wasm-simd.wasm': `${wasmBasePath}ort-wasm-simd.wasm`,
   'ort-wasm-threaded.wasm': `${wasmBasePath}ort-wasm-threaded.wasm`,
   'ort-wasm-simd-threaded.wasm': `${wasmBasePath}ort-wasm-simd-threaded.wasm`,
+  'ort-wasm-simd-threaded.jsep.wasm': `${wasmBasePath}ort-wasm-simd-threaded.jsep.wasm`,
+  'ort-wasm-simd-threaded.asyncify.wasm': `${wasmBasePath}ort-wasm-simd-threaded.asyncify.wasm`,
   'ort-wasm.mjs': `${wasmBasePath}ort-wasm.mjs`,
   'ort-wasm-simd.mjs': `${wasmBasePath}ort-wasm-simd.mjs`,
   'ort-wasm-threaded.mjs': `${wasmBasePath}ort-wasm-threaded.mjs`,
-  'ort-wasm-simd-threaded.mjs': `${wasmBasePath}ort-wasm-simd-threaded.mjs`
-} as unknown as Record<string, string>;
+  'ort-wasm-simd-threaded.mjs': `${wasmBasePath}ort-wasm-simd-threaded.mjs`,
+  'ort-wasm-simd-threaded.jsep.mjs': `${wasmBasePath}ort-wasm-simd-threaded.jsep.mjs`,
+  'ort-wasm-simd-threaded.asyncify.mjs': `${wasmBasePath}ort-wasm-simd-threaded.asyncify.mjs`
+};
+ort.env.wasm.wasmPaths = wasmFiles as unknown as Record<string, string>;
+console.log('ORT wasmPaths', ort.env.wasm.wasmPaths);
 // Disable the proxy worker and threads to keep the runtime on the main thread.
 ort.env.wasm.proxy = false;
 ort.env.wasm.numThreads = 1;
