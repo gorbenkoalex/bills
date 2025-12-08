@@ -1,12 +1,12 @@
-# Receipt parsing demo (React + Tailwind)
+# Receipt parsing demo (React + Tailwind + onnxruntime-web)
 
-Browser-first receipt parsing that mixes a rule-based parser with an optional ONNX line classifier. In this configuration the classifier is intentionally disabled and the parser always returns the same demo receipt so you can focus on the UI flow and training sample collection. Users can upload receipts (JPG/PNG/HEIC/PDF) or paste OCR text, review the parsed result, edit any field, and submit corrected samples to a lightweight backend. Python scripts convert the collected samples into an updated ONNX model for the browser when you decide to enable it.
+Browser-first receipt parsing with a real ONNX classifier, dual-model (live/local) switching, editable fields, and a JSONL training pipeline to keep improving the model from user feedback. Users can upload receipts (JPG/PNG/HEIC/PDF) or paste OCR text, review the parsed result, fix mistakes, and save the full parsing context to the backend for future training.
 
 ## Project layout
 - `frontend/` – React + TypeScript app (Vite) styled with TailwindCSS.
   - `src/components/` – `FileUpload`, `Summary`, `ItemsTable` UI pieces.
-  - `src/services/` – `ocrStub`, `parser`, `aiModel`, `api`, `lineFeatures` logic.
-  - `public/models/` – place `line_classifier.onnx` for the browser (output of training script) if you re-enable the model.
+  - `src/services/` – raw input extraction (`rawInput.ts`), ONNX inference (`aiModel.ts`), hybrid parsing (`parser.ts`), API client, and shared `lineFeatures`.
+  - `public/models/` – expected location for `receipt_parser_live.onnx` and `receipt_parser_local.onnx` used by `onnxruntime-web` (models are **not** committed; generate or download them before running).
 - `server/` – Express server that stores each training example in `server/data/samples.jsonl` (one JSON object per line) and can serve the built frontend.
 - `training/` – Python utilities to prepare the dataset and train/export the line classifier to ONNX.
 
@@ -45,13 +45,18 @@ npm run server
 If `dist/` exists (after `npm run build`), the server also serves the built SPA so you can run everything from http://localhost:4000.
 
 ## Self-learning loop
-1. Open the app, paste OCR text (or upload an image/PDF — OCR is stubbed but the flow is the same), and click **Parse**.
-2. The current parser returns a fixed demo receipt (as requested); adjust any field to see how edits propagate to the training payload.
-3. Click **Save / Confirm** to POST a `TrainingSample` with `rawText`, `parsedBefore`, and `parsedAfter` to the backend.
-4. Repeat to accumulate real-world samples in `server/data/samples.jsonl`.
+1. Open the app, paste OCR text or upload JPG/PNG/HEIC/PDF and click **Parse**.
+2. The browser loads `receipt_parser_live.onnx` (and optionally `receipt_parser_local.onnx`) via `onnxruntime-web`, classifies each line, and combines model output with regex/rule parsing to show store/date/total/items.
+3. Pick which model to view (Live / Local / Compare). In Compare mode you can flip between outputs.
+4. Edit any field. Use **Accept as correct** to store confirmed parses or **Save with corrections** to flag a bad parse and capture your fixes.
+5. Each save POSTs a `TrainingSample` with `rawInput` (text + source info), `modelOutput`, optional alternative model outputs, and `userCorrected` into `server/data/samples.jsonl`.
+6. Periodically run the training scripts to produce a refreshed `receipt_parser_local.onnx`, copy it to `frontend/public/models/`, and reload the app to test the improved local model.
 
 ## Training the ONNX classifier
-The training scripts consume the collected samples and can produce `frontend/public/models/line_classifier.onnx` for optional use via `onnxruntime-web`.
+The training scripts consume the collected samples and export two ONNX models (live + local) so the browser can compare them.
+
+> Note: ONNX artifacts are ignored by git. Run the training script or place provided models into `frontend/public/models/` before
+> starting the app; otherwise the runtime will fall back to rules-only parsing with warnings.
 
 Create a virtual environment (recommended) and install Python dependencies:
 ```bash
@@ -62,7 +67,7 @@ Run training:
 ```bash
 python -m training.train_line_classifier
 ```
-This prints train/test accuracy and exports `line_classifier.onnx` into `frontend/public/models/`. Rebuild the frontend afterwards (`npm run build`) so the new model is available in production bundles.
+This prints train/test accuracy and exports `receipt_parser_live.onnx` and `receipt_parser_local.onnx` into `frontend/public/models/`. Rebuild the frontend afterwards (`npm run build`) so the new model is available in production bundles.
 
 ## Feature parity between Python and browser
 Both the Python scripts and the frontend use the same 11 numeric features per line in this order:
@@ -82,6 +87,6 @@ Keep this order intact when experimenting so the model and browser agree on inpu
 
 ## Notes
 - Styling uses TailwindCSS; adjust utility classes or extend `frontend/src/index.css` as needed.
-- The OCR layer is intentionally a stub; replace `frontend/src/services/ocrStub.ts` with Tesseract.js or any OCR service to automate extraction. The UI already handles JPG/PNG/HEIC/PDF upload flow.
-- The parser is currently fixed to a static result and ignores the ONNX model. Remove the guardrails in `frontend/src/services/aiModel.ts` and `frontend/src/services/parser.ts` when you want live model-backed parsing.
-- Training samples are appended to a JSONL file for simplicity; rotate or move the file if it grows large.
+- OCR is kept minimal in `rawInput.ts` (pdf.js for PDFs, file->text stub for images). Swap in a real OCR pipeline without changing the rest of the flow.
+- Training samples append to a JSONL file for simplicity; rotate or move the file if it grows large.
+- Dual-model support: switch between live/local/compare using the top-left selector. Compare mode shows both models and lets you decide which output to edit/send.

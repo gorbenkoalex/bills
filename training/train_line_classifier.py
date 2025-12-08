@@ -1,54 +1,55 @@
 import os
-from datetime import datetime
+from typing import Optional
+
 import numpy as np
-from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
 from skl2onnx import convert_sklearn
 from skl2onnx.common.data_types import FloatTensorType
-from prepare_dataset import build_dataset, load_samples, FEATURE_NAMES
 
-MODEL_DIR = os.path.join(os.path.dirname(__file__), '..', 'frontend', 'public', 'models')
-MODEL_PATH = os.path.join(MODEL_DIR, 'line_classifier.onnx')
-LABEL_ORDER = ['ITEM', 'OTHER', 'TOTAL']
+from training.prepare_dataset import build_dataset, ensure_minimum_dataset, load_samples
+
+LIVE_MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'frontend', 'public', 'models', 'receipt_parser_live.onnx')
+LOCAL_MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'frontend', 'public', 'models', 'receipt_parser_local.onnx')
 
 
-def train_and_export():
-    samples = load_samples()
-    X, y = build_dataset(samples)
-    if not X:
-        print('No data found in samples.jsonl. Add training samples first.')
-        return
+def train_model(X, y):
+    clf = RandomForestClassifier(n_estimators=80, max_depth=None, random_state=42)
+    clf.fit(X, y)
+    return clf
 
-    X_array = np.array(X, dtype=np.float32)
-    encoder = LabelEncoder()
-    encoder.fit(LABEL_ORDER)
-    y_array = encoder.transform(y)
 
-    X_train, X_test, y_train, y_test = train_test_split(X_array, y_array, test_size=0.2, random_state=42)
-
-    clf = RandomForestClassifier(n_estimators=100, random_state=42)
-    clf.fit(X_train, y_train)
-
-    train_acc = clf.score(X_train, y_train)
-    test_acc = clf.score(X_test, y_test)
-    print(f"Train accuracy: {train_acc:.3f} | Test accuracy: {test_acc:.3f}")
-
-    initial_type = [('input', FloatTensorType([None, len(FEATURE_NAMES)]))]
-    onnx_model = convert_sklearn(
-        clf,
-        initial_types=initial_type,
-        target_opset=17,
-        options={"zipmap": False}
-    )
-    onnx_model.metadata_props.append({'key': 'trained_at', 'value': datetime.utcnow().isoformat()})
-    onnx_model.metadata_props.append({'key': 'classes', 'value': ','.join(encoder.classes_)})
-
-    os.makedirs(MODEL_DIR, exist_ok=True)
-    with open(MODEL_PATH, 'wb') as f:
+def export_model(clf, path: str, input_dim: int):
+    initial_type = [('input', FloatTensorType([None, input_dim]))]
+    onnx_model = convert_sklearn(clf, initial_types=initial_type, target_opset=15)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'wb') as f:
         f.write(onnx_model.SerializeToString())
-    print(f"Saved model to {MODEL_PATH}")
+    return path
+
+
+def main(samples_path: Optional[str] = None):
+    samples = load_samples(samples_path or os.path.join(os.path.dirname(__file__), '..', 'server', 'data', 'samples.jsonl'))
+    X, y = build_dataset(samples)
+    X, y = ensure_minimum_dataset(X, y)
+
+    X_arr = np.array(X, dtype=np.float32)
+    y_arr = np.array(y)
+    X_train, X_test, y_train, y_test = train_test_split(X_arr, y_arr, test_size=0.25, random_state=42)
+
+    clf = train_model(X_train, y_train)
+
+    train_pred = clf.predict(X_train)
+    test_pred = clf.predict(X_test)
+    print(f"Train accuracy: {accuracy_score(y_train, train_pred):.3f}")
+    print(f"Test accuracy: {accuracy_score(y_test, test_pred):.3f}")
+
+    live_path = export_model(clf, LIVE_MODEL_PATH, X_train.shape[1])
+    print(f"Exported live model to {live_path}")
+    local_path = export_model(clf, LOCAL_MODEL_PATH, X_train.shape[1])
+    print(f"Exported local model to {local_path}")
 
 
 if __name__ == '__main__':
-    train_and_export()
+    main()

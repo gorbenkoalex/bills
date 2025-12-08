@@ -3,5 +3,6 @@ npm-debug.log*
 .DS_Store
 dist
 frontend/public/wasm
+frontend/public/models/*.onnx
 server/data/samples.jsonl
 .env

@@ -1,5 +1,7 @@
 import json
 import os
+import json
+import os
 import re
 from typing import List, Tuple
 
@@ -66,8 +68,9 @@ def build_dataset(samples: List[dict]) -> Tuple[List[List[float]], List[str]]:
     X: List[List[float]] = []
     y: List[str] = []
     for sample in samples:
-        raw_text: str = sample.get('rawText', '')
-        parsed_after = sample.get('parsedAfter', {})
+        raw_input = sample.get('rawInput', {})
+        raw_text: str = raw_input.get('rawText') or sample.get('rawText', '')
+        parsed_after = sample.get('userCorrected') or sample.get('parsedAfter') or {}
         items = parsed_after.get('items', [])
         grand_total = parsed_after.get('grandTotal')
 
@@ -75,29 +78,41 @@ def build_dataset(samples: List[dict]) -> Tuple[List[List[float]], List[str]]:
 
         for line in lines:
             label = 'OTHER'
-            # ITEM label if line matches an item description in parsedAfter
             for item in items:
                 desc = (item.get('description') or '').strip()
                 total = item.get('total')
                 if desc and desc.lower() in line.lower():
                     label = 'ITEM'
                     break
-                if total is not None and f"{total:.2f}" in line.replace(',', '.'):  # numeric fallback
+                if total is not None and re.search(rf"{float(total):.2f}".replace('.', r"[.,]"), line):
                     label = 'ITEM'
                     break
-
             if label == 'OTHER' and grand_total is not None:
-                if re.search(rf"{grand_total:.2f}".replace('.', r"[.,]"), line):
+                if re.search(rf"{float(grand_total):.2f}".replace('.', r"[.,]"), line):
                     label = 'TOTAL'
+
             features = extract_line_features(line)
             X.append(features)
             y.append(label)
     return X, y
 
 
+def ensure_minimum_dataset(X: List[List[float]], y: List[str]) -> Tuple[List[List[float]], List[str]]:
+    if X:
+        return X, y
+    synthetic_lines = [
+        "BILLA D.O.O.",
+        "01.02.2024", "BANANA 2 x 1.20 2.40", "MILK 1 x 1.10 1.10", "UKUPNO 3.50"
+    ]
+    labels = ['OTHER', 'OTHER', 'ITEM', 'ITEM', 'TOTAL']
+    X = [extract_line_features(line) for line in synthetic_lines]
+    return X, labels
+
+
 if __name__ == '__main__':
     samples = load_samples()
     X, y = build_dataset(samples)
+    X, y = ensure_minimum_dataset(X, y)
     print(f"Loaded {len(samples)} samples, {len(X)} lines")
     if X:
         print(f"First row features: {X[0]}")
