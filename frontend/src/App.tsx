@@ -26,12 +26,19 @@ export function App() {
   const [edited, setEdited] = useState<ParsedReceipt>(emptyReceipt);
   const [loading, setLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
-  const [mode, setMode] = useState<ModelMode>('live');
+  const [mode, setMode] = useState<ModelMode>(() => {
+    const saved = typeof window !== 'undefined' ? window.localStorage.getItem('modelMode') : null;
+    if (saved === 'live' || saved === 'local' || saved === 'ensemble') return saved;
+    return 'live';
+  });
   const [activeModelId, setActiveModelId] = useState<'live' | 'local'>('live');
   const [modelStatus, setModelStatus] = useState(getModelStatuses());
 
   useEffect(() => {
     ensureModels({ mode }).then(() => setModelStatus(getModelStatuses()));
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('modelMode', mode);
+    }
   }, [mode]);
 
   const baseModelOutput = useMemo(() => {
@@ -50,19 +57,30 @@ export function App() {
     }
   }, [activeModelId, mode, parsingResult]);
 
+  const handleFileSelected = (selected: File | null) => {
+    setFile(selected);
+    setRawInput(null);
+    setParsingResult(null);
+    setRawText('');
+    setEdited(emptyReceipt);
+    setSaveStatus(null);
+  };
+
   const handleParse = async () => {
     setLoading(true);
     setSaveStatus(null);
     try {
       let currentRaw: RawReceiptInput | null = null;
       let text = rawText.trim();
-      if (!text && file) {
+      if (file) {
         currentRaw = await extractRawRepresentation(file);
         text = currentRaw.rawText;
         setRawText(text);
+      } else if (!text) {
+        throw new Error('Provide raw text or upload a receipt first.');
       }
+
       if (!currentRaw) {
-        if (!text) throw new Error('Provide raw text or upload a receipt first.');
         currentRaw = buildRawInputFromText(text, file ? { fileName: file.name, mimeType: file.type } : undefined);
       }
       setRawInput(currentRaw);
@@ -181,7 +199,7 @@ export function App() {
         </div>
 
         <FileUpload
-          onFileSelected={setFile}
+          onFileSelected={handleFileSelected}
           rawText={rawText}
           onRawTextChange={setRawText}
           onParse={handleParse}

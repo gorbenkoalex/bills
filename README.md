@@ -90,3 +90,9 @@ Keep this order intact when experimenting so the model and browser agree on inpu
 - OCR is kept minimal in `rawInput.ts` (pdf.js for PDFs, file->text stub for images). Swap in a real OCR pipeline without changing the rest of the flow.
 - Training samples append to a JSONL file for simplicity; rotate or move the file if it grows large.
 - Dual-model support: switch between live/local/compare using the top-left selector. Compare mode shows both models and lets you decide which output to edit/send.
+
+## Reducing merge conflicts
+- Lockfiles use a union merge strategy via `.gitattributes` to minimize conflicts when dependency trees change across branches.
+- Generated assets remain untracked (`dist/`, `frontend/public/wasm/*.wasm|*.mjs`, ONNX models). Run `npm run build` and the helper copy scripts after pulling instead of committing build output.
+- The `frontend/public/wasm/README.md` stays tracked so the folder exists; only the runtime artifacts are ignored. This avoids Git treating documentation files as binary and prevents "binary files not supported" errors when diffing.
+- If you still hit conflicts, prefer recreating local artifacts (copy wasm/model files, rebuild) rather than merging generated content.
