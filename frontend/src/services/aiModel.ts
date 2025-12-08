@@ -1,21 +1,4 @@
 import * as ort from 'onnxruntime-web';
-// Vite needs explicit imports so the wasm/mjs assets are fingerprinted and
-// served as static files instead of being treated as module transforms from
-// /public. We map each ORT artifact to a hashed URL via `?url` imports.
-import wasmBase from '../wasm/ort-wasm.wasm?url';
-import wasmBaseSimd from '../wasm/ort-wasm-simd.wasm?url';
-import wasmBaseJsep from '../wasm/ort-wasm.jsep.wasm?url';
-import wasmBaseSimdJsep from '../wasm/ort-wasm-simd.jsep.wasm?url';
-import wasmThreaded from '../wasm/ort-wasm-simd-threaded.wasm?url';
-import wasmThreadedJsep from '../wasm/ort-wasm-simd-threaded.jsep.wasm?url';
-import wasmThreadedAsyncify from '../wasm/ort-wasm-simd-threaded.asyncify.wasm?url';
-import moduleBase from '../wasm/ort-wasm.mjs?url';
-import moduleBaseSimd from '../wasm/ort-wasm-simd.mjs?url';
-import moduleBaseJsep from '../wasm/ort-wasm.jsep.mjs?url';
-import moduleBaseSimdJsep from '../wasm/ort-wasm-simd.jsep.mjs?url';
-import moduleThreaded from '../wasm/ort-wasm-simd-threaded.mjs?url';
-import moduleThreadedJsep from '../wasm/ort-wasm-simd-threaded.jsep.mjs?url';
-import moduleThreadedAsyncify from '../wasm/ort-wasm-simd-threaded.asyncify.mjs?url';
 import { extractLineFeatures } from './lineFeatures';
 import type { LineClass, ModelMode, ModelRunMetadata, RawReceiptInput } from '../types';
 
@@ -35,30 +18,28 @@ const defaultConfig: InferenceConfig = {
   localVersion: '0.0.0'
 };
 
-// Direct each expected ORT artifact to the fingerprinted asset URL Vite
-// produces so no /public imports happen at runtime. This prevents Vite from
-// throwing "should not be imported from source" errors for the `.mjs` shims.
+// Serve ORT directly from the public/wasm folder so the browser fetches the
+// real binaries with the correct MIME type instead of Vite attempting to
+// transform them as modules. This prevents "expected magic word" failures when
+// HTML is returned for wasm requests.
+const wasmBasePath = '/wasm/';
 ort.env.wasm.wasmPaths = {
-  // Single-threaded fallbacks
-  'ort-wasm.wasm': wasmBase,
-  'ort-wasm-simd.wasm': wasmBaseSimd,
-  'ort-wasm.jsep.wasm': wasmBaseJsep,
-  'ort-wasm-simd.jsep.wasm': wasmBaseSimdJsep,
-  'ort-wasm.mjs': moduleBase,
-  'ort-wasm-simd.mjs': moduleBaseSimd,
-  'ort-wasm.jsep.mjs': moduleBaseJsep,
-  'ort-wasm-simd.jsep.mjs': moduleBaseSimdJsep,
-  // Threaded (kept for compatibility even though we disable workers by default)
-  'ort-wasm-simd-threaded.wasm': wasmThreaded,
-  'ort-wasm-simd-threaded.jsep.wasm': wasmThreadedJsep,
-  'ort-wasm-simd-threaded.asyncify.wasm': wasmThreadedAsyncify,
-  'ort-wasm-simd-threaded.mjs': moduleThreaded,
-  'ort-wasm-simd-threaded.jsep.mjs': moduleThreadedJsep,
-  'ort-wasm-simd-threaded.asyncify.mjs': moduleThreadedAsyncify
+  'ort-wasm.wasm': `${wasmBasePath}ort-wasm.wasm`,
+  'ort-wasm-simd.wasm': `${wasmBasePath}ort-wasm-simd.wasm`,
+  'ort-wasm.jsep.wasm': `${wasmBasePath}ort-wasm.jsep.wasm`,
+  'ort-wasm-simd.jsep.wasm': `${wasmBasePath}ort-wasm-simd.jsep.wasm`,
+  'ort-wasm.mjs': `${wasmBasePath}ort-wasm.mjs`,
+  'ort-wasm-simd.mjs': `${wasmBasePath}ort-wasm-simd.mjs`,
+  'ort-wasm.jsep.mjs': `${wasmBasePath}ort-wasm.jsep.mjs`,
+  'ort-wasm-simd.jsep.mjs': `${wasmBasePath}ort-wasm-simd.jsep.mjs`,
+  'ort-wasm-simd-threaded.wasm': `${wasmBasePath}ort-wasm-simd-threaded.wasm`,
+  'ort-wasm-simd-threaded.jsep.wasm': `${wasmBasePath}ort-wasm-simd-threaded.jsep.wasm`,
+  'ort-wasm-simd-threaded.asyncify.wasm': `${wasmBasePath}ort-wasm-simd-threaded.asyncify.wasm`,
+  'ort-wasm-simd-threaded.mjs': `${wasmBasePath}ort-wasm-simd-threaded.mjs`,
+  'ort-wasm-simd-threaded.jsep.mjs': `${wasmBasePath}ort-wasm-simd-threaded.jsep.mjs`,
+  'ort-wasm-simd-threaded.asyncify.mjs': `${wasmBasePath}ort-wasm-simd-threaded.asyncify.mjs`
 } as unknown as Record<string, string>;
-// Disable the proxy worker and threads to keep the runtime on the main thread
-// and avoid worker/JSEP module fetches that Vite would try to transform. The
-// single-threaded wasm artifacts above are the primary runtime targets.
+// Disable the proxy worker and threads to keep the runtime on the main thread.
 ort.env.wasm.proxy = false;
 ort.env.wasm.numThreads = 1;
 

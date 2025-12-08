@@ -6,7 +6,9 @@ import path from 'path';
 // "expected magic word" errors caused by HTML fallbacks on missing wasm files.
 const root = path.resolve(new URL('.', import.meta.url).pathname, '..');
 const sourceDir = path.resolve(root, 'node_modules', 'onnxruntime-web', 'dist');
-const targetDir = path.resolve(root, 'frontend', 'src', 'wasm');
+// Assets live under public/wasm so the runtime can fetch them directly without
+// going through Vite's module pipeline.
+const targetDir = path.resolve(root, 'frontend', 'public', 'wasm');
 
 // Copy both single-threaded and threaded ORT wasm artifacts so the runtime can
 // fall back gracefully when workers/threads are disabled. We keep the list

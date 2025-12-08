@@ -1,5 +1,6 @@
 # ONNX Runtime WebAssembly assets
 
-Runtime wasm/mjs artifacts are now copied into `frontend/src/wasm/` so Vite can fingerprint them and avoid importing `/public` assets as modules. This README remains tracked to keep the folder present for older deployments that still expect `/public/wasm/`.
+Runtime wasm/mjs artifacts are copied into this `frontend/public/wasm/` folder so the browser can fetch them directly with the
+correct MIME type. Git ignores the binaries, but this README stays committed to keep the directory present.
 
-If you run an older build that fetches from `/wasm/`, place the ONNX Runtime wasm binaries and loader shims here. They are ignored by Git, but this README stays committed.
+If wasm loads fail, rerun `npm run copy:wasm` to repopulate the artifacts from `node_modules/onnxruntime-web/dist/`.
