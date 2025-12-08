@@ -1,0 +1,11 @@
+* text=auto
+
+# Treat lockfile with union strategy to reduce manual conflict resolution
+package-lock.json merge=union
+
+# Binary assets
+*.onnx binary
+*.wasm binary
+# Limit binary marking to actual artifacts so text docs (README, .gitkeep) stay diffable
+frontend/public/wasm/*.wasm binary
+frontend/public/wasm/*.mjs binary
